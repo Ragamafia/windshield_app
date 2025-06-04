@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Цена {{model.capitalize()}} {{gen}}</title>
+	<style>
+
+  body {
+    background-color: #2F4F4F;
+    color: #ffffff; /* светлый цвет текста по умолчанию */
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+
+  h1 {
+    font-size: 45px;
+    font-weight: bold; /* жирный шрифт */
+    color: #00FF00; /* цвет букв */
+    margin-bottom: 10px;
+  }
+
+  h2 {
+    font-size: 30px;
+    font-weight: bold; /* жирный шрифт */
+    color: #00FF00; /* цвет букв */
+    margin-bottom: 10px;
+  }
+
+  p {
+    font-size: 25px;
+    margin-bottom: 30px;
+    color: #7CFC00;
+  }
+
+  a {
+    font-size: 20px;
+    color: #7CFC00; /* цвет ссылок */
+    text-decoration: none; /* без подчеркивания */
+  }
+
+  a:hover {
+    text-decoration: underline; /* при наведении — подчеркнуть */
+    color: #FFD700;
+  }
+</style>
+
+</head>
+<body>
+<h1>{{brand.capitalize()}} {{model.capitalize()}} </h1>
+<h2> {{ gen }}</h2>
+<ul></ul>
+<p>
+	Высота / длина: {{info}} <br>
+	<br>
+	Стоимость оклейки лобового стекла: ???
+</p>
+<p>______________________</p>
+<a href="/">Назад к списку моделей</a>
+</body>
+</html>

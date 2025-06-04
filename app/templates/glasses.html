@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Модели {{ brand }}</title>
+</head>
+<body>
+<h1>Модели марки {{ brand }}</h1>
+<ul>
+{% for model in models %}
+    <li>{{ model }}</li>
+{% endfor %}
+</ul>
+<a href="/">Назад к списку марок</a>
+</body>
+</html>

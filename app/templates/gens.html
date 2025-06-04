@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Годы выпуска {{brand.capitalize()}} {{ model.capitalize() }}</title>
+	<style>
+
+  body {
+    background-color: #2F4F4F;
+    color: #ffffff; /* светлый цвет текста по умолчанию */
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+
+  /* Заголовок */
+  h1 {
+    font-size: 45px;
+    font-weight: bold; /* жирный шрифт */
+    color: #00FF00; /* светлый цвет букв */
+    margin-bottom: 10px;
+  }
+
+  /* Подзаголовок */
+  p {
+    font-size: 30px;
+    margin-bottom: 30px;
+    color: #7CFC00;
+  }
+
+  /* Ссылки */
+
+  li {
+    margin-bottom: 10px; /* отступ между элементами списка */
+  }
+
+  a {
+    font-size: 20px;
+    color: #7CFC00; /* цвет ссылок */
+    text-decoration: none; /* без подчеркивания */
+  }
+
+  a:hover {
+    text-decoration: underline; /* при наведении — подчеркнуть */
+    color: #FFD700;
+  }
+</style>
+
+
+</head>
+<body>
+<h1> {{ model.capitalize() }}</h1>
+<ul>
+{% for gen in gens %}
+    <li><a href="/{{ brand }}/{{ model }}/{{ gen }}">{{ gen.capitalize() }}</a></li>
+{% endfor %}
+</ul>
+<p>______________________</p>
+<a href="/">Назад к списку моделей</a>
+</body>
+</html>
