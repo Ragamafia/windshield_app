@@ -1,4 +1,5 @@
 .idea/
+.idea/vcs.xml
 .run/
 venv/
 backups/
