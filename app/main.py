@@ -4,12 +4,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from calc import CarGlass
+
 
 app = FastAPI()
 
 templates = Jinja2Templates(directory="templates")
 
-with open("glasses.json", "r") as file:
+with open("base.json", "r") as file:
     data = json.load(file)
 
 
@@ -55,12 +57,22 @@ async def show_gens(request: Request, brand: str, model: str):
 async def show_info(request: Request, brand: str, model: str, gen:str):
     brands = data.get(brand.lower())
     models = brands.get(model)
-    info = models.get(gen)
+    size = models.get(gen)
 
-    return templates.TemplateResponse("info.html", {
+    info = {
         "request": request,
         "brand": brand,
         "model": model,
         "gen": gen,
-        "info": info,
-    })
+        "size": size[:2]
+    }
+
+    if isinstance(size, list):
+        price_usa, price_korea = CarGlass(size[1], high_level=False).get_prices()
+
+        info['price_usa'] = price_usa
+        info['price_korea'] = price_korea
+    else:
+        info['price'] = "Not found"
+
+    return templates.TemplateResponse("info.html", info)
