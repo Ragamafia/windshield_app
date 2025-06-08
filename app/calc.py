@@ -14,7 +14,6 @@ def get_cf_by_width(width):
 class CarGlass:
     width: int
     film_type: Literal['usa', 'korea']
-    high_level: bool = False
 
     def __init__(self, width, high_level):
         self.width = width

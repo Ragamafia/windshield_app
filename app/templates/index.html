@@ -5,7 +5,7 @@
 	<style>
 
   body {
-    background-color: #2F4F4F;
+    background-color: #232323;
     color: #ffffff; /* светлый цвет текста по умолчанию */
     font-family: Arial, sans-serif;
     margin: 20px;
@@ -18,10 +18,15 @@
     color: #FFD700; /* цвет букв */
     margin-bottom: 10px;
   }
-
+	h2 {
+    font-size: 39px;
+    font-weight: bold; /* жирный шрифт */
+    color: #FFD700; /* цвет букв */
+    margin-bottom: 10px;
+  }
   /* Подзаголовок */
   p {
-    font-size: 30px;
+    font-size: 28px;
     margin-bottom: 30px;
     color: #7CFC00;
   }
@@ -29,7 +34,7 @@
   /* Ссылки */
   ul {
     list-style-type: none; /* убираем маркеры списка */
-    columns: 3; /* делим на три столбика */
+    columns: 4; /* делим на три столбика */
     column-gap: 10px; /* расстояние между столбиками */
     padding: 0;
     margin: 0;
@@ -49,16 +54,33 @@
     text-decoration: underline; /* при наведении — подчеркнуть */
     color: #FFD700;
   }
+  .container {
+  width: 800px; /* или любой нужный размер */
+  margin: 0 auto; /* центрирование по горизонтали */
+}
+
+/* Блок с ссылками внутри контейнера */
+.links-block {
+  /* Можно задать ширину, например: */
+  width: 800px;
+
 </style>
 </head>
 
 <body>
-<h1>Windshield price</h1>
+<h1>Protective film </h1>
 <p>Выберите марку автомобиля</p>
-<ul>
-{% for brand in brands %}
-    <li><a href="/brand/{{ brand }}">{{ brand.capitalize() }}</a></li>
-{% endfor %}
+
+<div class="container">
+  <div class="links-block">
+
+	<ul>
+		{% for brand in brands %}
+			<li><a href="/brand/{{ brand }}">{{ brand.capitalize() }}</a></li>
+		{% endfor %}
 </ul>
+	    </div>
+</div>
+
 </body>
 </html>

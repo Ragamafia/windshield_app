@@ -45,8 +45,8 @@ async def show_models(request: Request, brand: str):
 
 @app.get("/{brand}/{model}", response_class=HTMLResponse)
 async def show_gens(request: Request, brand: str, model: str):
-    brands = data.get(brand.lower())
-    models = brands.get(model.lower())
+    brands = data.get(brand)
+    models = brands.get(model)
     gens = list(models.keys())
 
     markup = {
@@ -60,7 +60,7 @@ async def show_gens(request: Request, brand: str, model: str):
 
 @app.get("/{brand}/{model}/{gen}", response_class=HTMLResponse)
 async def show_info(request: Request, brand: str, model: str, gen:str):
-    brands = data.get(brand.lower())
+    brands = data.get(brand)
     models = brands.get(model)
     size = models.get(gen)
     high_level = False
@@ -75,7 +75,7 @@ async def show_info(request: Request, brand: str, model: str, gen:str):
         "brand": brand,
         "model": model,
         "gen": gen,
-        "size": size[:2],
+        "size": size,
         'price_usa': price_usa,
         'price_korea': price_korea
     }
