@@ -8,35 +8,39 @@ from calc import CarGlass
 
 
 app = FastAPI()
-
 templates = Jinja2Templates(directory="templates")
 
-with open("base.json", "r") as file:
+with open("base.json", "r", encoding='utf-8') as file:
     data = json.load(file)
+
+with open("hard.json", "r", encoding='utf-8') as file:
+    hard = json.load(file)
+
+HARD_CARS = set([l.strip() for l in hard])
 
 
 @app.get("/", response_class=HTMLResponse)
 async def main(request: Request):
-    brand = list(data.keys())
+    brands = list(data.keys())
 
-    return templates.TemplateResponse("index.html", {
+    markup = {
         "request": request,
-        "brands": brand
-    })
+        "brands": brands
+    }
+    return templates.TemplateResponse("index.html", markup)
 
 
-@app.get("/brand/{brand_name}", response_class=HTMLResponse)
-async def show_models(request: Request, brand_name: str):
-    brands = data.get(brand_name.lower())
-    # if not model:
-    #     return HTMLResponse(content=f"<h2>Марка {brand_name} не найдена</h2>", status_code=404)
+@app.get("/brand/{brand}", response_class=HTMLResponse)
+async def show_models(request: Request, brand: str):
+    brands = data.get(brand)
     models = list(brands.keys())
 
-    return templates.TemplateResponse("models.html", {
+    markup = {
         "request": request,
-        "brand": brand_name,
+        "brand": brand,
         "models": models
-    })
+    }
+    return templates.TemplateResponse("models.html", markup)
 
 
 @app.get("/{brand}/{model}", response_class=HTMLResponse)
@@ -45,12 +49,13 @@ async def show_gens(request: Request, brand: str, model: str):
     models = brands.get(model.lower())
     gens = list(models.keys())
 
-    return templates.TemplateResponse("gens.html", {
+    markup = {
         "request": request,
         "brand": brand,
         "model": model,
         "gens": gens
-    })
+    }
+    return templates.TemplateResponse("gens.html", markup)
 
 
 @app.get("/{brand}/{model}/{gen}", response_class=HTMLResponse)
@@ -58,21 +63,20 @@ async def show_info(request: Request, brand: str, model: str, gen:str):
     brands = data.get(brand.lower())
     models = brands.get(model)
     size = models.get(gen)
+    high_level = False
 
-    info = {
+    if '*'.join([brand, model, gen]) in HARD_CARS:
+        high_level = True
+
+    price_usa, price_korea = CarGlass(size[1], high_level).get_prices()
+
+    markup = {
         "request": request,
         "brand": brand,
         "model": model,
         "gen": gen,
-        "size": size[:2]
+        "size": size[:2],
+        'price_usa': price_usa,
+        'price_korea': price_korea
     }
-
-    if isinstance(size, list):
-        price_usa, price_korea = CarGlass(size[1], high_level=False).get_prices()
-
-        info['price_usa'] = price_usa
-        info['price_korea'] = price_korea
-    else:
-        info['price'] = "Not found"
-
-    return templates.TemplateResponse("info.html", info)
+    return templates.TemplateResponse("info.html", markup)
