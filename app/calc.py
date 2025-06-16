@@ -11,6 +11,7 @@ def get_cf_by_width(width):
     elif cfg.min_size_big <= width:
         return cfg.caf_big
 
+
 class CarGlass:
     width: int
     film_type: Literal['usa', 'korea']

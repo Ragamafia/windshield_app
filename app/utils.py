@@ -21,12 +21,16 @@ def dict_to_json(data, file_path):
 
 def rewriting_database(data):
     dict = {}
+
+
     for brand, models in data.items():
         dict[brand] = {}
 
         for model, gens in models.items():
+
             values = []
             if model not in dict[brand]:
+
                 dict[brand][model] = {}
 
             for gen, info in gens.items():
@@ -44,10 +48,11 @@ def rewriting_database(data):
                         first_value = values[0]
                         dict[brand][model][gen] = first_value
                     else:
-                        dict[brand][model][gen] = [900, 1500]
+                        dict[brand][model][gen] = [900, 1550]
+
     return dict
 
 
-#data = json_to_dict(path_to_glasses)
-#new_data = rewriting_database(data)
+data = json_to_dict(path_to_glasses)
+new_data = rewriting_database(data)
 #dict_to_json(new_data, path_to_base)
