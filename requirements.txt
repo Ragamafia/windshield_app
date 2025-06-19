@@ -1,10 +1,12 @@
 fastapi
 uvicorn
 pydantic
-pydantic_settings
+pydantic-settings
 Jinja2
 aiogram
 tortoise
+tortoise-orm
 aiohttp
-aiohttp_proxy
+aiohttp-proxy
 bs4
+fake-useragent

@@ -2,8 +2,8 @@ from typing import Type
 
 from tortoise.models import Model
 
-from base import BaseDB
-from table import CarDBModel
+from src.db.base import BaseDB
+from src.db.table import CarDBModel
 
 
 class Car(BaseDB):

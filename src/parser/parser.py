@@ -6,7 +6,7 @@ from aiohttp_proxy import ProxyType, ProxyConnector
 from bs4 import BeautifulSoup
 
 from config import cfg
-from utils import save_data_to_json
+from utils import dict_to_json
 
 
 TIMEOUT = ClientTimeout(total=cfg.proxy_check_timeout)
@@ -54,7 +54,7 @@ class MainParser:
         info = await asyncio.gather(*task_info)
 
         print(self.data)
-        save_data_to_json(self.data)
+        dict_to_json(self.data)
 
     async def get_page(self, url):
         retries = cfg.request_attempts

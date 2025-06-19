@@ -11,7 +11,6 @@ from config import cfg
 class DetailerBot(Bot):
 
     def __init__(self):
-        print(cfg.bot_token)
         props = DefaultBotProperties(parse_mode="HTML")
         super().__init__(cfg.bot_token, default=props)
 

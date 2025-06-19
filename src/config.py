@@ -4,13 +4,16 @@ from pydantic_settings import BaseSettings
 from fake_useragent import UserAgent
 
 
+root = Path().cwd().parent.parent
+
+
 class Config(BaseSettings):
 
     class Config:
-        extra="ignore"
         env_file = "../env/.env"
         env_file_encoding = "utf-8"
 
+    ## Main
     HOME_URL: str = "https://autosteklo.ru/"
     CITY: str = "moscow"
 
@@ -18,20 +21,21 @@ class Config(BaseSettings):
         "User-Agent": UserAgent().random
     }
 
-    scheme: str = 'https'
+    scheme: str = ''
     proxy_user: str = ''
     proxy_pass: str = ''
     proxy_host: str = ''
     proxy_port: str = ''
+
     bot_token: str = ''
 
     proxy_check_timeout: int = 60
     request_attempts: int = 5
 
-
-
-    sql_lite_db_path: Path = Path("../data/database.db")
-    path_to_base: Path = Path("../data/base.json")
+    sql_lite_db_path: Path = Path(root, "data/database.db")
+    path_to_json_base: Path = Path(root, "data/base.json")
+    path_to_json_hard: Path = Path(root, "data/hard.json")
+    path_to_json_common: Path = Path(root, "data/glasses.json")
 
 
     price_pm_usa: int = 8000

@@ -5,15 +5,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from calc import CarGlass
+from config import cfg
 
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-with open("base.json", "r", encoding='utf-8') as file:
+with open(cfg.path_to_json_base, "r", encoding='utf-8') as file:
     data = json.load(file)
 
-with open("hard.json", "r", encoding='utf-8') as file:
+with open(cfg.path_to_json_hard, "r", encoding='utf-8') as file:
     hard = json.load(file)
 
 HARD_CARS = set([l.strip() for l in hard])

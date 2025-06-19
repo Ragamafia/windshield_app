@@ -1,10 +1,6 @@
 import json
-from pathlib import Path
 
-
-root = Path.cwd()
-path_to_glasses = Path(root, 'glasses.json')
-path_to_base = Path(root, 'base.json')
+from config import cfg
 
 
 def json_to_dict(file_path):
@@ -14,14 +10,12 @@ def json_to_dict(file_path):
     return dict_list
 
 def dict_to_json(data, file_path):
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    with open(file_path, 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
         print(f'Data saved in {file_path}')
-
 
 def rewriting_database(data):
     dict = {}
-
 
     for brand, models in data.items():
         dict[brand] = {}
@@ -36,7 +30,6 @@ def rewriting_database(data):
             for gen, info in gens.items():
                 if gen not in dict[brand][model]:
                     dict[brand][model][gen] = {}
-
 
                 if info != 'Товар не найден':
                     values.append(info)
@@ -53,6 +46,6 @@ def rewriting_database(data):
     return dict
 
 
-data = json_to_dict(path_to_glasses)
-new_data = rewriting_database(data)
-#dict_to_json(new_data, path_to_base)
+#data = json_to_dict(cfg.path_to_json_common)
+#new_data = rewriting_database(data)
+#dict_to_json(new_data, cfg.path_to_json_base)
