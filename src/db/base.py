@@ -1,9 +1,14 @@
-import sqlite3
+from typing import Type
 from functools import wraps
-from typing_extensions import Type
+from pathlib import Path
 
 from tortoise import Tortoise
+from tortoise.models import Model
 
+from config import cfg
+
+root = Path().cwd().parent.parent
+sql_lite_db_path = root / "data/database.db"
 
 
 def ensure_car(func):
@@ -19,8 +24,7 @@ class BaseDB:
     name: str = ""
     inited: bool = False
     model: Type[Model]
-    ensure_client: callable = ensure_client
-    primary_key: str = "id"
+    ensure_car: callable = ensure_car
 
     def __init__(self, prefix: str = None):
         if prefix:
@@ -28,12 +32,14 @@ class BaseDB:
 
     async def setup_db(self):
         if self.name:
-            filename = cfg.sql_lite_db_path.with_suffix(f".{self.name}.db")
+            filename = sql_lite_db_path.with_suffix(f".{self.name}.db")
         else:
-            filename = cfg.sql_lite_db_path
+            filename = sql_lite_db_path
+            print(filename)
+
         await Tortoise.init(
             db_url=f"sqlite://{filename}",
-            modules={'models': ['db.tables']}
+            modules={'models': ['src.db.table']}
         )
         BaseDB.inited = True
         await Tortoise.generate_schemas()

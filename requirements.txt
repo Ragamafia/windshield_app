@@ -1,4 +1,10 @@
-fastapi uvicorn
+fastapi
+uvicorn
 pydantic
 pydantic_settings
 Jinja2
+aiogram
+tortoise
+aiohttp
+aiohttp_proxy
+bs4
