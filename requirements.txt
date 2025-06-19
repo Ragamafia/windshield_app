@@ -1,4 +1,4 @@
 fastapi uvicorn
 pydantic
-pydantic_core
+pydantic_settings
 Jinja2
