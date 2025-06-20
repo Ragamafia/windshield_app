@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand
 
-from handlers import register_main_handlers
+from bot.handlers import register_main_handlers
 from config import cfg
 
 
@@ -20,16 +20,8 @@ class DetailerBot(Bot):
         self.dispatcher.include_router(self.router)
         register_main_handlers(self)
 
-    def run(self):
-        asyncio.run(self.serve())
-
-    async def serve(self):
+    async def run(self):
         await self.set_my_commands([
             BotCommand(command='/start', description='Start bot')
         ])
         await self.dispatcher.start_polling(self)
-
-
-if __name__ == '__main__':
-    bot = DetailerBot()
-    bot.run()

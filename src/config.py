@@ -4,9 +4,6 @@ from pydantic_settings import BaseSettings
 from fake_useragent import UserAgent
 
 
-root = Path().cwd().parent.parent
-
-
 class Config(BaseSettings):
 
     class Config:
@@ -32,10 +29,10 @@ class Config(BaseSettings):
     proxy_check_timeout: int = 60
     request_attempts: int = 5
 
-    sql_lite_db_path: Path = Path(root, "data/database.db")
-    path_to_json_base: Path = Path(root, "data/base.json")
-    path_to_json_hard: Path = Path(root, "data/hard.json")
-    path_to_json_common: Path = Path(root, "data/glasses.json")
+    sql_lite_db_path: Path = Path("../data/database.db")
+    path_to_json_base: Path = Path("../data/base.json")
+    path_to_json_hard: Path = Path("../data/hard.json")
+    path_to_json_common: Path = Path("../data/glasses.json")
 
 
     price_pm_usa: int = 8000
