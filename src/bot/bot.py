@@ -1,10 +1,8 @@
-import asyncio
-
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand
 
-from bot.handlers import register_main_handlers
+from src.bot.handlers import register_main_handlers
 from config import cfg
 
 

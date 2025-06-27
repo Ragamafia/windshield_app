@@ -1,6 +1,6 @@
 import json
 
-from config import cfg
+from logger import logger
 
 
 def json_to_dict(file_path):
@@ -14,38 +14,35 @@ def dict_to_json(data, file_path):
         json.dump(data, file, ensure_ascii=False, indent=4)
         print(f'Data saved in {file_path}')
 
-def rewriting_database(data):
-    dict = {}
 
-    for brand, models in data.items():
-        dict[brand] = {}
-
-        for model, gens in models.items():
-
-            values = []
-            if model not in dict[brand]:
-
-                dict[brand][model] = {}
-
-            for gen, info in gens.items():
-                if gen not in dict[brand][model]:
-                    dict[brand][model][gen] = {}
-
-                if info != 'Товар не найден':
-                    values.append(info)
-                    dict[brand][model][gen] = info
-
-            for gen, info in gens.items():
-                if info == 'Товар не найден':
-                    if values:
-                        first_value = values[0]
-                        dict[brand][model][gen] = first_value
-                    else:
-                        dict[brand][model][gen] = [900, 1550]
-
-    return dict
+def save_image(save_dir, img):
+    save_dir.mkdir(parents=True, exist_ok=True)
+    filename = save_dir / "img.jpg"
+    if filename.exists():
+        logger.info(f'Image already exists')
+    else:
+        with open(filename, 'wb') as file:
+            file.write(img)
+        logger.debug(f'Save new image: {filename}')
 
 
-#data = json_to_dict(cfg.path_to_json_common)
-#new_data = rewriting_database(data)
-#dict_to_json(new_data, cfg.path_to_json_base)
+def process_gen(year_text, gen_text):
+    restyling = False
+
+    years = year_text.split()
+    try:
+        start = int(years[0])
+    except ValueError:
+        start = None
+    try:
+        end = int(years[2])
+    except ValueError:
+        end = None
+
+    for i in gen_text:
+        if i.isdigit():
+            gen = int(i)
+            if 'рестайлинг' in gen_text:
+                restyling = True
+
+            return start, end, gen, restyling

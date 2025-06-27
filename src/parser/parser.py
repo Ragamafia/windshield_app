@@ -2,65 +2,47 @@ import asyncio
 import random
 
 from aiohttp import ClientSession, ClientTimeout, ClientError
-from aiohttp_proxy import ProxyType, ProxyConnector
+from aiohttp_proxy import ProxyConnector
 from bs4 import BeautifulSoup
 
+from utils import save_image, process_gen
+from db.cars import car
 from config import cfg
-from utils import dict_to_json
-
-
-TIMEOUT = ClientTimeout(total=cfg.proxy_check_timeout)
-
+from logger import logger
 
 class MainParser:
 
-    def __init__(self):
-        self.data = {}
-        self.lock = asyncio.Lock()
-
     async def run(self):
-        print(cfg.proxy_user)
-        proxy_type = ProxyType.HTTP if cfg.scheme == "http" else ProxyType.HTTPS
-        kwargs = {
-            "timeout": TIMEOUT,
-            "connector": ProxyConnector(
-                proxy_type=proxy_type,
-                username=cfg.proxy_user,
-                password=cfg.proxy_pass,
-                host=cfg.proxy_host,
-                port=cfg.proxy_port,
-            )
-        }
-        async with ClientSession(**kwargs) as self.session:
+        timeout = ClientTimeout(total=cfg.proxy_check_timeout)
+        proxy = f"{cfg.scheme}://{cfg.proxy_user}:{cfg.proxy_pass}@{cfg.proxy_host}:{cfg.proxy_port}"
+        connector = ProxyConnector.from_url(proxy)
+
+        async with ClientSession(connector=None, timeout=timeout, headers=cfg.headers) as self.session:
             await self.get_pages()
 
     async def get_pages(self):
-        home = await self.get_page(cfg.HOME_URL)
+        home = await self.request(cfg.HOME_URL)
         home_page = await self.get_home_page(home)
 
-        tasks_brands = [self.get_all_brand_links(brand) for brand in home_page]
+        tasks_brands = [self.get_brand_links(brand) for brand in home_page]
         brands = await asyncio.gather(*tasks_brands)
 
         tasks_models = [self.get_models(model) for model in brands]
         models = await  asyncio.gather(*tasks_models)
 
-        task_gens = [self.get_gen(model) for model in models]
+        task_gens = [self.get_gen_and_image(model) for model in models]
         gens = await asyncio.gather(*task_gens)
 
-        task_glasses = [self.get_glass(gen) for gen in gens]
+        task_glasses = [self.get_glass_link(gen) for gen in gens]
         glasses = await asyncio.gather(*task_glasses)
 
         task_info = [self.get_info(size) for size in glasses]
         info = await asyncio.gather(*task_info)
 
-        print(self.data)
-        dict_to_json(self.data)
-
-    async def get_page(self, url):
-        retries = cfg.request_attempts
-        for attempt in range(retries):
+    async def request(self, url):
+        for attempt in range(cfg.request_attempts):
             try:
-                async with self.session.get(url, headers=cfg.headers) as response:
+                async with self.session.get(url) as response:
 
                     if response.status == 429:
                         print(f'Status code {response.status}. Too many requests. Wait...')
@@ -68,7 +50,7 @@ class MainParser:
                         continue
 
                     elif response.status != 200:
-                        print(f"Website is DOWN! Status code {response.status}")
+                        print(f'Status code {response.status}. BAN!')
                         exit()
 
                     elif response.status == 200:
@@ -83,16 +65,22 @@ class MainParser:
             except ClientError as e:
                 print(f"ERROR: {e}")
 
-    async def _update_data(self, brand, model, gen, size):
-        async with self.lock:
-            if brand not in self.data:
-                self.data[brand] = {}
-            if model not in self.data[brand]:
-                self.data[brand][model] = {}
-            if gen not in self.data[brand][model]:
-                self.data[brand][model][gen] = {}
+    async def get_image(self, url):
+        try:
+            async with self.session.get(url) as response:
 
-            self.data[brand][model][gen] = size
+                if response.status != 200:
+                    print(f'Error get image: Response status {response.status}')
+                    exit()
+
+                content_type = response.headers.get('Content-Type', '')
+                if not content_type.startswith('image/'):
+                    print('No image')
+                if image := await response.read():
+                    return image
+
+        except Exception as e:
+            print(f"Error get image. Response status {response.status}. {e}")
 
 
     async def get_home_page(self, page):
@@ -101,84 +89,114 @@ class MainParser:
         data = container.find_all('a', href=True)
         return data
 
-    async def get_all_brand_links(self, brand_link):
+    async def get_brand_links(self, brand_link):
         link = brand_link['href'].split('/', 2)
-        url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/' + link[2]
+        url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/{link[2]}"
+        brand = link[2].split('/')
+
+        await car.put_brand(brand[1])
+
         return url
 
     async def get_models(self, brand):
         models_list = []
-        models = await self.get_page(brand)
+        models = await self.request(brand)
         soup = BeautifulSoup(models, "html.parser")
         container = soup.find("div", class_="marks")
         models = container.find_all('a', href=True)
+
         for i in models:
             link = i['href'].split('/', 3)
-            url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/steklo/' + link[3]
+            url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/steklo/{link[3]}"
             models_list.append(url)
+            mark, model = link[3].split('/')
+
+            await car.put_model(mark, model)
 
         return models_list
 
-    async def get_gen(self, models):
+    async def get_gen_and_image(self, models):
+        semaphore = asyncio.Semaphore(cfg.semaphore_range)
         all_gens = []
-        for i in models:
-            gen = await self.get_page(i)
 
-            try:
-                soup = BeautifulSoup(gen, "html.parser")
-                container = soup.find("section", class_="gen-list")
-                gens = container.find_all('a', href= True)
-                for i in gens:
-                    link = i['href'].split('/', 3)
-                    url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/glass-types/' + link[3]
-                    all_gens.append(url)
+        async with semaphore:
+            for i in models:
+                try:
+                    gen = await self.request(i)
+                    soup = BeautifulSoup(gen, "html.parser")
+                    container = soup.find("section", class_="gen-list")
+                    card = container.find_all('div', class_="group-car-card")
 
-            except Exception as e:
-                print(f'{e}. BS4 received {gen}')
+                    for i in card:
+                        tag = i.find('a', href=True)
+                        link = tag['href'].split('/', 3)
+                        url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/glass-types/{link[3]}"
+                        all_gens.append(url)
+
+                        brand, model, gen_id = link[3].split('/')
+                        years = i.find('span', class_='text')
+                        gen = i.find('span', class_='caption-generation')
+                        self.year_start, self.year_end, self.gen, self.restyle = process_gen(years.text, gen.text)
+
+                        await car.put_gen(brand, model, self.year_start, self.year_end, self.gen, self.restyle)
+
+                        # image = i.find('img', src=True)
+                        # brand, model, gen = link[3].split('/')
+                        #
+                        # img = await self.get_image(image['src'])
+                        # save_dir = cfg.path_to_images / brand / model / gen
+                        # save_image(save_dir, img)
+
+                except Exception as e:
+                    print(f'Error get gen: {e}')
 
         return all_gens
 
-    async def get_glass(self, gens):
-        result = []
-        for i in gens:
-            glass = await self.get_page(i)
+    async def get_glass_link(self, gens):
+        semaphore = asyncio.Semaphore(cfg.semaphore_range)
+        glasses = []
 
-            try:
-                soup = BeautifulSoup(glass, "html.parser")
-                container = soup.find("section", class_="glass-type")
-                windshield = container.find('a')
-                link = windshield['href'].split('/', 3)
-                url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/steklo/' + link[3]
-                result.append(url)
+        async with semaphore:
+            for i in gens:
+                try:
+                    glass = await self.request(i)
+                    soup = BeautifulSoup(glass, "html.parser")
+                    container = soup.find("section", class_="glass-type")
+                    windshield = container.find('a')
+                    link = windshield['href'].split('/', 3)
+                    url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/steklo/{link[3]}"
+                    glasses.append(url)
 
-            except Exception as e:
-                print(f'{e}. BS4 received {glass} ')
+                except Exception as e:
+                    print(f'Error get glass link: {e}')
 
-        return result
+        return glasses
 
     async def get_info(self, glasses):
-        for i in glasses:
-            glass = await self.get_page(i)
+        semaphore = asyncio.Semaphore(cfg.semaphore_range)
+        async with semaphore:
+            for i in glasses:
+                try:
+                    glass = await self.request(i)
+                    soup = BeautifulSoup(glass, "html.parser")
+                    link = i.split('/')
+                    brand, model = link[5], link[6]
 
-            try:
-                soup = BeautifulSoup(glass, "html.parser")
-                link = i.split('/')
-                brand, model = link[5], link[6]
-                gen = soup.find('strong')
+                    if 'не найден' in soup.text:
+                        #await car.put_gen(brand, model, self.year_start, self.year_end, self.gen, self.restyle)
+                        logger.warning(f'No size for: {brand, model, self.year_start}-{self.year_end}')
 
-                if 'не найден' in soup.text:
-                    await self._update_data(brand, model, gen.text, "Товар не найден")
+                    else:
+                        sizes = []
+                        glass_info = soup.find_all("div", class_="dropdown-block")
+                        for i in glass_info:
+                            result = i.text.strip().split()
+                            for size in result:
+                                if size.isdigit():
+                                    sizes.append(size)
 
-                else:
-                    sizes = []
-                    glass_info = soup.find_all("div", class_="dropdown-block")
-                    for i in glass_info:
-                        result = i.text.strip().split()
-                        for size in result:
-                            if size.isdigit():
-                                sizes.append(size)
+                        await car.put_gen(height=str(sizes[0]), width=str(sizes[1]))
+                        logger.info(f'Added car: {brand} {model} {self.year_start}-{self.year_end}')
 
-                    await self._update_data(brand, model, gen.text, str(sizes[:2]))
-
-            except Exception as e:
-                print(f'{e}. BS4 received {glass}')
+                except Exception as e:
+                    print(f'Error get info: {e}')

@@ -5,6 +5,7 @@ from aiogram.filters import Command
 
 from db.cars import car
 from config import cfg
+from logger import logger
 
 
 with open(cfg.path_to_json_base, 'r', encoding='utf-8') as file:
@@ -17,33 +18,30 @@ def register_main_handlers(bot):
 
     @bot.router.message(Command(commands=['start']))
     async def start_command(message: types.Message):
-
         models_list.clear()
         for brand, models in data.items():
             for model in models:
                 models_list.append((brand, model))
 
-
         if not models_list:
-            await message.answer("Нет необработанных автомобилей.")
+            await message.answer("Нет необработанных моделей.")
             return
 
         brand, model = models_list.pop(0)
         user_id = message.from_user.id
         user_states[user_id] = {'brand': brand, 'model': model}
         await message.answer(f"Введите уровень сложности для {brand.upper()} {model.upper()} (1 - 10):")
+
 
     async def next_model(message):
         if not models_list:
-            await message.answer("Processing complete.")
+            await message.answer("Нет необработанных моделей.")
             return
 
         brand, model = models_list.pop(0)
         user_id = message.from_user.id
         user_states[user_id] = {'brand': brand, 'model': model}
         await message.answer(f"Введите уровень сложности для {brand.upper()} {model.upper()} (1 - 10):")
-
-
 
 
     @bot.router.message()
@@ -52,23 +50,24 @@ def register_main_handlers(bot):
         state = user_states.get(user_id)
 
         if not state:
-            await message.answer("Please, send /start to begin.")
+            await message.answer("Нажмите /start чтобы начать.")
             return
 
         text = message.text.strip()
-
         try:
-            level = int(text)
-            if 1 <= level <= 10:
+            if 1 <= int(text) <= 10:
                 brand = state['brand']
                 model = state['model']
 
                 await car.put_car(
                     brand,
                     model,
-                    level,
+                    int(text),
                 )
-                await message.answer(f"Записана сложность для {brand.upper()} {model.upper()}: {level}")
+
+                await message.answer(f"Записана сложность для {brand.upper()} {model.upper()}: {int(text)}")
+                logger.info(f'Car saved. {brand} {model}. Difficulty {int(text)}')
+
                 del user_states[user_id]
                 await next_model(message)
             else:

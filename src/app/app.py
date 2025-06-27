@@ -4,12 +4,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from calc import CarGlass
+from src.app.calc import CarGlass
 from config import cfg
 
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=cfg.templates)
 
 with open(cfg.path_to_json_base, "r", encoding='utf-8') as file:
     data = json.load(file)
