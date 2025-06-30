@@ -28,7 +28,7 @@ class Config(BaseSettings):
 
     proxy_check_timeout: int = 60
     request_attempts: int = 5
-    semaphore_range: int = 4
+    WORKERS_COUNT: int = 10
 
     sql_lite_db_path: Path = Path("../data/database.db")
     path_to_json_base: Path = Path("../data/base.json")
@@ -39,6 +39,8 @@ class Config(BaseSettings):
 
     templates: Path = Path("app/templates")
 
+    db_batch: int = 1
+    db_offset: int = 0
 
     price_pm_usa: int = 8000
     price_pm_korea: int = 4000

@@ -3,7 +3,7 @@ import json
 from aiogram import types
 from aiogram.filters import Command
 
-from db.cars import car
+from db.ctrl import db
 from config import cfg
 from logger import logger
 
@@ -59,7 +59,7 @@ def register_main_handlers(bot):
                 brand = state['brand']
                 model = state['model']
 
-                await car.put_car(
+                await db.put_car(
                     brand,
                     model,
                     int(text),

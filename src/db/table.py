@@ -6,12 +6,12 @@ from tortoise import fields
 
 class BrandDBModel(Model):
     processed = fields.BooleanField(default=False)
-    id = fields.CharField(primary_key=True, max_length=36)
+    id = fields.UUIDField(primary_key=True)
     brand = fields.CharField(max_length=50)
 
 class ModelDBModel(Model):
     processed = fields.BooleanField(default=False)
-    id = fields.CharField(primary_key=True, max_length=36)
+    id = fields.UUIDField(primary_key=True)
     brand = fields.CharField(max_length=50)
     model = fields.CharField(max_length=50)
 
@@ -19,15 +19,16 @@ class GenDBModel(Model):
     processed = fields.BooleanField(default=False)
     rated = fields.BooleanField(default=False)  # получен difficulty level
 
-    id = fields.CharField(primary_key=True, max_length=36)
+    id = fields.UUIDField(primary_key=True)
+    glass_id = fields.CharField(max_length=50)
 
     brand = fields.CharField(max_length=50)
     model = fields.CharField(max_length=50)
-    gen_start = fields.IntField(default=None)
-    gen_end = fields.IntField(default=None)
-    gen = fields.IntField(default=None)
-    restyle = fields.BooleanField(default=False)
+    gen_start = fields.CharField(max_length=50, null=None, default=None)
+    gen_end = fields.CharField(max_length=50, null=None, default=None)
+    gen = fields.IntField(null=True)
+    restyle = fields.BooleanField(null=True)
 
-    glass_height = fields.IntField(default=None)
-    glass_width = fields.IntField(default=None)
-    difficulty = fields.IntField(default=None)
+    glass_height = fields.CharField(max_length=50, null=True)
+    glass_width = fields.CharField(max_length=50, null=True)
+    difficulty = fields.CharField(max_length=50, null=True)
