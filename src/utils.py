@@ -26,23 +26,22 @@ def save_image(save_dir, img):
         logger.debug(f'Save new image: {filename}')
 
 
-def process_gen(year_text, gen_text):
+def process_gen(year, gens):
     restyling = False
 
-    years = year_text.split()
+    years = year.text.split()
     try:
-        start = int(years[0])
+        start = int(years[2])
     except ValueError:
         start = None
     try:
-        end = int(years[2])
+        end = int(years[4])
     except ValueError:
         end = None
 
-    for i in gen_text:
+    for i in gens.text:
         if i.isdigit():
             gen = int(i)
-            if 'рестайлинг' in gen_text:
+            if 'рестайлинг' in gens.text:
                 restyling = True
-
             return start, end, gen, restyling

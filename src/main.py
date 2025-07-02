@@ -23,23 +23,17 @@ async def run_server():
     await server.serve()
 
 async def run_parser():
-    parsers = []
+    workers = []
     for _ in range(cfg.WORKERS_COUNT):
-        parsers.append(MainParser())
+        workers.append(MainParser())
 
     logger.info(f'Parse process...')
-    start_time = time.time()
-
-    await parsers[0].ensure_brands()
-    await asyncio.gather(*[parser.run() for parser in parsers])
-
-    end_time = time.time()
-    logger.info(f'Parsing done. Times {end_time - start_time} seconds')
+    await workers[0].ensure_brands()
+    await asyncio.gather(*[worker.run() for worker in workers])
 
 
 async def main():
     await run_parser()
-    #await asyncio.get_event_loop().run_in_executor(None, run_parser)
 
     #server_task = asyncio.create_task(run_server())
     #bot_task = asyncio.create_task(run_bot())

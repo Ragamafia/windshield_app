@@ -14,6 +14,9 @@ from logger import logger
 class MainParser:
     session: ClientSession
 
+    def __init__(self):
+        self.started = True
+
     @staticmethod
     async def new_session():
         timeout = ClientTimeout(total=cfg.proxy_check_timeout)
@@ -36,7 +39,7 @@ class MainParser:
     async def run(self):
         async with await self.new_session() as self.session:
 
-            while True:
+            while self.started:
                 if brand := await db.get_brand_to_parse():
                     if models := await self._parse_brand(brand):
                         task = [db.put_model(brand, model) for model in models]
@@ -45,29 +48,18 @@ class MainParser:
                 elif model := await self.get_model_to_parse():
                     brand, model_name = model
                     if result := await self._parse_model(brand, model_name):
-                        print(result)
-                        gens, info = result
-                        tasks = [
-                            db.put_gens(
-                                brand,
-                                model_name,
-                                gen,
-                                info_item['start'],
-                                info_item['end'],
-                                info_item['gen'],
-                                info_item['restyle']
-                            )
-                            for gen, info_item in zip(gens, info)
-                        ]
-                        await asyncio.gather(*tasks)
+                        task = [db.put_gens(**res) for res in result]
+                        await asyncio.gather(*task)
 
-                # elif gen := await self.get_gen_to_parse():
+                else:
+                    self.started = False
+
                 #     brand, model, glass_id = gen
                 #     if size := await self._parse_gen(brand, model, glass_id):
                 #         height, width = size
                 #         await db.put_size(height, width)
-                else:
-                    break
+
+
 
     async def request(self, url):
         for attempt in range(cfg.request_attempts):
@@ -114,9 +106,6 @@ class MainParser:
             print(f"Error get image. Response status {response.status}. {e}")
 
 
-    # async def get_brand_to_parse(self):
-    #     return await db.get_brand()
-
     async def get_model_to_parse(self):
         try:
             brand, model = await db.get_model()
@@ -127,9 +116,7 @@ class MainParser:
 
 
     async def get_gen_to_parse(self):
-        brand, model, gen = await db.get_gen()
-        return brand, model, gen
-
+        ...
 
     async def _parse_all_brands(self):
         brands = []
@@ -158,43 +145,37 @@ class MainParser:
 
         return models
 
-    async def _parse_model(self, brand, model):
+    async def _parse_model(self, brand, model) -> list[dict]:
         url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/steklo/{brand}/{model}"
-        glass_ids = []
-        gen_info = []
-
         page = await self.request(url)
         soup = BeautifulSoup(page, "html.parser")
         container = soup.find("section", class_="gen-list")
-        print(f'CONTAINERRRRRRRRRRRRRRRRRRRRRRRRRRRRRR {container}')
-        card = container.find_all('div', class_="group-car-card")
-        print(f'СОДЕРЖИМОЕ СФКВВВВВВВВВВВВВВВВВВВВВВВВВВВВВВ {card}')
+        years = container.find_all('div', class_='years')
+        gens = container.find_all('div', class_='gens')
+        links = container.find_all('a', href=True)
+        ids = [l['href'].split('/', 5)[5] for l in links]
 
-        for i in card:
-            print(i.text)
-            info = {}
+        results = []
+        for i, y, g in zip(ids, years, gens):
+            year_start, year_end, gen, restyle = process_gen(y, g)
+            print(year_start, year_end, gen, restyle)
 
-            tag = i.find('a', href=True)
-            link = tag['href'].split('/', 5)
-            glass_ids.append(link[5])
+            results.append({
+                "brand": brand,
+                "model": model,
+                "glass_id": i,
+                "year_start": year_start,
+                "year_end": year_end,
+                "gen": gen,
+                "restyle": restyle,
+            })
 
-            years = i.find('span', class_='text')
-            gens = i.find('span', class_='caption-generation')
-            year_start, year_end, gen, restyle = process_gen(years.text, gens.text)
-            print(f'Цикл работает !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {year_start}')
-            info['start'] = year_start
-            info['end'] = year_end
-            info['gen'] = gen
-            info['restyle'] = restyle
+        return results
 
-            gen_info.append(info)
-
-            # image = i.find('img', src=True)
-            # img = await self.get_image(image['src'])
-            # save_dir = cfg.path_to_images / brand / model / gen
-            # save_image(save_dir, img)
-
-        return glass_ids, gen_info
+        # image = i.find('img', src=True)
+        # img = await self.get_image(image['src'])
+        # save_dir = cfg.path_to_images / brand / model / gen
+        # save_image(save_dir, img)
 
     async def _parse_gen(self, brand, model, glass_id):
         url = f"{cfg.HOME_URL.rstrip('/')}/{cfg.CITY}/steklo/{brand}/{model}/{glass_id}?filter=font"

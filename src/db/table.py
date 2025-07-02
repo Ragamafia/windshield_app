@@ -24,8 +24,8 @@ class GenDBModel(Model):
 
     brand = fields.CharField(max_length=50)
     model = fields.CharField(max_length=50)
-    gen_start = fields.CharField(max_length=50, null=None, default=None)
-    gen_end = fields.CharField(max_length=50, null=None, default=None)
+    year_start = fields.IntField(max_length=50, null=True)
+    year_end = fields.IntField(max_length=50, null=True)
     gen = fields.IntField(null=True)
     restyle = fields.BooleanField(null=True)
 

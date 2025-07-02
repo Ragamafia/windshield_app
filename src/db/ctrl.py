@@ -42,8 +42,7 @@ class DataBaseController(BaseDB):
         async with self.model_lock:
             if model := await self.model.filter(processed=False).first():
                 await self.model.filter(id=model.id).update(processed=True)
-                if model is not None:
-                    return model.brand, model.model
+                return model.brand, model.model
 
     @BaseDB.ensure_car
     async def get_gen(self):
@@ -51,11 +50,12 @@ class DataBaseController(BaseDB):
             if gen := await self.gen.all():
                 return len(gen)
 
+
     @BaseDB.ensure_car
     async def put_brands(self, brand):
-        #if not await self.brand.filter(brand=brand).exists():
-        await self.brand.create(brand=brand)
-        logger.info(f'Added brand: {brand}')
+        if not await self.brand.filter(brand=brand).exists():
+            await self.brand.create(brand=brand)
+            logger.info(f'Create brand: {brand}')
 
     @BaseDB.ensure_car
     async def put_model(self, brand, model):
