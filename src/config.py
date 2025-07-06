@@ -28,13 +28,10 @@ class Config(BaseSettings):
 
     proxy_check_timeout: int = 60
     request_attempts: int = 5
-    WORKERS_COUNT: int = 10
+    WORKERS_COUNT: int = 5
 
     sql_lite_db_path: Path = Path("../data/database.db")
     path_to_json_base: Path = Path("../data/base.json")
-    path_to_json_hard: Path = Path("../data/hard.json")
-    path_to_json_common: Path = Path("../data/glasses.json")
-    path_to_update_base: Path = Path("../data/update_base.json")
     path_to_images: Path = Path("../data/images/")
 
     templates: Path = Path("app/templates")

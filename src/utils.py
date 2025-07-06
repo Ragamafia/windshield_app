@@ -24,24 +24,3 @@ def save_image(save_dir, img):
         with open(filename, 'wb') as file:
             file.write(img)
         logger.debug(f'Save new image: {filename}')
-
-
-def process_gen(year, gens):
-    restyling = False
-
-    years = year.text.split()
-    try:
-        start = int(years[2])
-    except ValueError:
-        start = None
-    try:
-        end = int(years[4])
-    except ValueError:
-        end = None
-
-    for i in gens.text:
-        if i.isdigit():
-            gen = int(i)
-            if 'рестайлинг' in gens.text:
-                restyling = True
-            return start, end, gen, restyling

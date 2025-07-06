@@ -23,7 +23,6 @@ class Logger:
         self.exception = vanilla_logger.exception
         self.critical = vanilla_logger.critical
         self.log = vanilla_logger.log
-        self.add = vanilla_logger.add
 
 
 logger = Logger()

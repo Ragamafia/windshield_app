@@ -38,17 +38,16 @@ class DataBaseController(BaseDB):
                 return brand.brand
 
     @BaseDB.ensure_car
-    async def get_model(self):
+    async def get_model_to_parse(self):
         async with self.model_lock:
             if model := await self.model.filter(processed=False).first():
                 await self.model.filter(id=model.id).update(processed=True)
                 return model.brand, model.model
 
     @BaseDB.ensure_car
-    async def get_gen(self):
+    async def get_gen_to_parse(self):
         async with self.gen_lock:
-            if gen := await self.gen.all():
-                return len(gen)
+            ...
 
 
     @BaseDB.ensure_car
@@ -67,7 +66,7 @@ class DataBaseController(BaseDB):
             logger.info(f'Added model: {brand} {model}')
 
     @BaseDB.ensure_car
-    async def put_gens(self, brand, model, glass_id, year_start, year_end, gen, restyle):
+    async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle):
         if not await self.gen.filter(
                 brand=brand,
                 model=model,
@@ -88,27 +87,6 @@ class DataBaseController(BaseDB):
     async def put_size(self, height, width):
         ...
 
-    # @BaseDB.ensure_car
-    # async def put_gens(self, brand, model, year_start, year_end, gen, restyle, img_id):
-    #     if not await self.gen.filter(
-    #             brand=brand,
-    #             model=model,
-    #             year_start=year_start,
-    #             year_end=year_end,
-    #             gen=gen,
-    #             restyle=restyle
-    #     ).exists():
-    #
-    #         await self.gen.create(
-    #             brand=brand,
-    #             model=model,
-    #             year_start=year_start,
-    #             year_end=year_end,
-    #             gen=gen,
-    #             restyle=restyle,
-    #             img_id=img_id
-    #     )
-    #         logger.info(f'Added: {brand} {model}, {year_start}-{year_end}')
 
     @BaseDB.ensure_car
     async def delete(self, brand):
