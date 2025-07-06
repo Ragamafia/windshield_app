@@ -47,7 +47,7 @@ class MainParser:
 
                 elif model := await db.get_model_to_parse():
                     if result := await self._parse_model(*model):
-                        task = [db.put_gens(**res) for res in result]
+                        task = [db.put_gen(**res) for res in result]
                         await asyncio.gather(*task)
 
                 else:
@@ -89,55 +89,73 @@ class MainParser:
         return models
 
     async def _parse_model(self, brand, model) -> list[dict]:
-        results = []
         page = await self.get(f"{BASE_URL}/{brand}/{model}")
         soup = BeautifulSoup(page, "html.parser")
+        results = []
+
         cards = soup.find_all("div", {"class": "group-car-card"})
-        for card in soup.find_all("div", {"class": "group-car-card"}):
+        if not cards:
+            cards = soup.find_all("div", {"class": "car-info"})
+
+        for card in cards:
             try:
                 results.append({
-                    "glass_id": card.find("a")["href"].split("/")[-1],
                     "brand": brand,
                     "model": model,
+                    **self._parse_class_id(card),
                     **self._parse_years(card),
                     **self._parse_generation(card),
                 })
             except Exception as e:
                 print(f"Can not parse generation for {brand} {model}: "
                       f"'{e}'\n{card}")
-        if not results:
-            print(f"   +++ SOSNOOLEY {cards=}")
+
         return results
 
+    def _parse_class_id(self, card):
+        try:
+            id = card.find("a")["href"].split("/")[-1]
+        except:
+            id = card.parent.parent["href"].split("/")[-1]
+
+        return {
+            "glass_id": id
+        }
 
     def _parse_years(self, card):
-        if div := card.find("div", {"class": "caption-year"}):
-            years = div.text.split()
-            try:
-                start = int(years[2])
-            except ValueError:
-                start = None
-            try:
-                end = int(years[4])
-            except ValueError:
-                end = None
-            return {
-                    "year_start": start,
-                    "year_end": end,
-                }
+        div = card.find("div", class_=["caption-year", "years"])
+        years = div.text.split()
 
-        raise ValueError("Can not parse years")
+        try:
+            start = int(years[2])
+        except ValueError:
+            start = None
+        try:
+            end = int(years[4])
+        except ValueError:
+            end = None
+
+        return {
+            "year_start": start,
+            "year_end": end,
+        }
 
     def _parse_generation(self, card):
-        if span := card.find("span", {"class": "caption-generation"}):
-            gen = span.text
-            if restyle := "рестайлинг" in span.text:
-                gen = span.text.split(",&nbsp")[0]
-            gen = gen.replace("Поколение", "")
-            try:
-                return {"gen": int(gen.strip()), "restyle": restyle}
-            except:
-                ...
+        restyling = False
+        span = card.find("span", {"class": "caption-generation"})
+        if not span:
+            span = card.find("div", {"class": "gens"})
+
+        for i in span.text:
+            if i.isdigit():
+                gen = int(i)
+                if 'рестайлинг' in span.text:
+                    restyling = True
+
+                return {
+                    "gen": gen,
+                    "restyle": restyling
+                }
 
         raise ValueError("Can not parse generation")
 
