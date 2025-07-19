@@ -13,6 +13,7 @@ class Config(BaseSettings):
     ## Main
     HOME_URL: str = "https://autosteklo.ru/"
     CITY: str = "moscow"
+    BASE_URL: str = f"{HOME_URL.rstrip('/')}/{CITY}/steklo"
 
     headers: dict = {
         "User-Agent": UserAgent().random
@@ -27,7 +28,7 @@ class Config(BaseSettings):
     bot_token: str = ''
 
     proxy_check_timeout: int = 60
-    request_attempts: int = 5
+    request_attempts: int = 10
     WORKERS_COUNT: int = 5
 
     sql_lite_db_path: Path = Path("../data/database.db")
@@ -36,26 +37,14 @@ class Config(BaseSettings):
 
     templates: Path = Path("app/templates")
 
-    db_batch: int = 1
-    db_offset: int = 0
+    min_level: int = 1
+    max_level: int = 10
+
+    default_height: int = 900
+    default_width: int = 1550
 
     price_pm_usa: int = 8000
     price_pm_korea: int = 4000
-
-    caf_small: float = 1.3
-    caf_middle: float = 1.5
-    caf_big: float = 1.7
-
-    max_size_small: int = 1299
-
-    min_size_middle: int = 1300
-    max_size_middle: int = 1599
-
-    min_size_big: int = 1600
-
-    install_easy: int = 12000
-    install_medium: int = 14000
-    install_hard: int = 20000
 
 
 cfg = Config()

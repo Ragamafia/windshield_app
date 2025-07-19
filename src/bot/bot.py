@@ -13,13 +13,12 @@ class DetailerBot(Bot):
         super().__init__(cfg.bot_token, default=props)
 
         self.router: Router = Router()
-        self.dispatcher: Dispatcher = Dispatcher()
-
-        self.dispatcher.include_router(self.router)
+        self.dp: Dispatcher = Dispatcher()
+        self.dp.include_router(self.router)
         register_main_handlers(self)
 
     async def run(self):
         await self.set_my_commands([
             BotCommand(command='/start', description='Start bot')
         ])
-        await self.dispatcher.start_polling(self)
+        await self.dp.start_polling(self)

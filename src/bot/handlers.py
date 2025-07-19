@@ -1,76 +1,61 @@
-import json
+from pathlib import Path
 
-from aiogram import types
 from aiogram.filters import Command
+from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from db.ctrl import db
 from config import cfg
 from logger import logger
 
 
-with open(cfg.path_to_json_base, 'r', encoding='utf-8') as file:
-    data = json.load(file)
-
-
 def register_main_handlers(bot):
-    user_states = {}
-    models_list = []
-
     @bot.router.message(Command(commands=['start']))
-    async def start_command(message: types.Message):
-        models_list.clear()
-        for brand, models in data.items():
-            for model in models:
-                models_list.append((brand, model))
+    async def start_command(message: Message):
+        keyboard = ReplyKeyboardMarkup(
+            resize_keyboard=True,
+            keyboard=[
+                [KeyboardButton(text="NEXT >>>")],
+                [
+                    KeyboardButton(text="Получить инфо"),
+                    KeyboardButton(text="Редактировать")
+                ]
+            ])
+        await message.answer('Чтобы приступить к установке уровней сложности нажмите NEXT >>>', reply_markup=keyboard)
 
-        if not models_list:
-            await message.answer("Нет необработанных моделей.")
-            return
-
-        brand, model = models_list.pop(0)
-        user_id = message.from_user.id
-        user_states[user_id] = {'brand': brand, 'model': model}
-        await message.answer(f"Введите уровень сложности для {brand.upper()} {model.upper()} (1 - 10):")
-
-
-    async def next_model(message):
-        if not models_list:
-            await message.answer("Нет необработанных моделей.")
-            return
-
-        brand, model = models_list.pop(0)
-        user_id = message.from_user.id
-        user_states[user_id] = {'brand': brand, 'model': model}
-        await message.answer(f"Введите уровень сложности для {brand.upper()} {model.upper()} (1 - 10):")
+    def level_buttons():
+        row_1 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(1, 6)]
+        row_2 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(6, 11)]
+        return InlineKeyboardMarkup(inline_keyboard=[row_1, row_2])
 
 
-    @bot.router.message()
-    async def handler_level(message: types.Message):
-        user_id = message.from_user.id
-        state = user_states.get(user_id)
+    @bot.router.message(lambda message: message.text == "NEXT >>>")
+    async def handle_level(message: Message):
+        if car := await db.get_model_info():
+            level_none = next(group for group in car["groups"] if group.get("level") is None)
 
-        if not state:
-            await message.answer("Нажмите /start чтобы начать.")
-            return
+            image_path = Path(cfg.path_to_images / car.get("brand") / car.get("model") / level_none.get("ids")[0] / "img.jpg")
 
-        text = message.text.strip()
-        try:
-            if 1 <= int(text) <= 10:
-                brand = state['brand']
-                model = state['model']
+            await message.answer_photo(
+                photo=FSInputFile(image_path),
+                caption=f"Уровень сложности для\n"
+                        f"{car.get("brand").upper()} {car.get("model").upper()}, "
+                        f"{level_none.get("gen")} поколение, {level_none.get("years")}",
+                reply_markup=level_buttons()
+            )
 
-                await db.put_car(
-                    brand,
-                    model,
-                    int(text),
-                )
+    @bot.router.callback_query(lambda c: c.data and c.data.startswith('level_'))
+    async def process_level_callback(callback_query: CallbackQuery):
+        level = callback_query.data.split('_')[1]
+        gen = None
+        for i in callback_query.message.caption.split():
+            if i.isdigit():
+                gen = int(i)
+                break
 
-                await message.answer(f"Записана сложность для {brand.upper()} {model.upper()}: {int(text)}")
-                logger.info(f'Car saved. {brand} {model}. Difficulty {int(text)}')
+        await bot.send_message(callback_query.from_user.id, f"Выбран уровень сложности - {level}.")
+        await db.update_info(gen, level)
 
-                del user_states[user_id]
-                await next_model(message)
-            else:
-                await message.answer("Пожалуйста, введите число от 1 до 10.")
-        except ValueError:
-            await message.answer("Пожалуйста, введите ЧИСЛОВОЕ значение от 1 до 10.")
+    @bot.router.message(lambda message: message.text == "Получить инфо")
+    async def handle_info(message: Message):
+        logger.warning(f"Press INFO")

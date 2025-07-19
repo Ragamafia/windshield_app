@@ -47,7 +47,9 @@ class DataBaseController(BaseDB):
     @BaseDB.ensure_car
     async def get_gen_to_parse(self):
         async with self.gen_lock:
-            ...
+            if gen := await self.gen.filter(processed=False).first():
+                await self.gen.filter(id=gen.id).update(processed=True)
+                return gen.brand, gen.model, gen.glass_id
 
 
     @BaseDB.ensure_car
@@ -59,10 +61,7 @@ class DataBaseController(BaseDB):
     @BaseDB.ensure_car
     async def put_model(self, brand, model):
         if not await self.model.filter(brand=brand, model=model).exists():
-            await self.model.create(
-                brand=brand,
-                model=model
-            )
+            await self.model.create(brand=brand, model=model)
             logger.info(f'Added model: {brand} {model}')
 
     @BaseDB.ensure_car
@@ -81,16 +80,73 @@ class DataBaseController(BaseDB):
                 gen=gen,
                 restyle=restyle
             )
-            logger.info(f'Added gen: {brand} {model} {glass_id}')
+            logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
 
     @BaseDB.ensure_car
-    async def put_size(self, height, width):
-        ...
+    async def put_size(self, glass_id, height, width):
+        if car := await self.gen.filter(glass_id=glass_id).first():
+            if not car.height:
+                car.height = height
+                car.width = width
+                await car.save()
+                logger.info(f'Update size for ID {glass_id}')
 
 
     @BaseDB.ensure_car
-    async def delete(self, brand):
-        await self.brand.filter(brand=brand).delete()
+    async def get_model_info(self):
+        async with self.gen_lock:
+            if car := await self.gen.filter(level=False).first():
+                gens = await self.gen.filter(brand=car.brand, model=car.model).order_by("year_start").all()
+                groups = {}
+                for gen in gens:
+                    if gen.gen not in groups:
+                        groups[gen.gen] = [gen]
+                    else:
+                        groups[gen.gen].append(gen)
+                fixed = []
+                for group in groups.values():
+                    levels = [i.difficulty for i in group]
+                    if len(set(levels)) == 1:
+                        level = levels[0]
+                    else:
+                        level = None
+                    fixed.append({
+                        "ids": [i.glass_id for i in group],
+                        "years": f"{group[0].year_start}-{group[0].year_end}",
+                        "gen": group[0].gen,
+                        "level": level,
+                    })
+
+                result = {
+                    "brand": gens[0].brand if gens else "",
+                    "model": gens[0].model if gens else "",
+                    "groups": fixed,
+                }
+                #print(json.dumps(result, indent=4, default=str))
+                return result
+
+    @BaseDB.ensure_car
+    async def update_info(self, gen, level):
+        if car := await self.gen.filter(level=False).first():
+            gens = await self.gen.filter(brand=car.brand, model=car.model, gen=gen).order_by("year_start").all()
+            for car in gens:
+                car.difficulty = level
+                await car.save()
+                await self.gen.filter(id=car.id).update(level=True)
+                logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
+
+
+    @BaseDB.ensure_car
+    async def count_brands(self):
+        return len(await self.brand.filter().all())
+
+    @BaseDB.ensure_car
+    async def count_models(self):
+        return len(await self.model.filter().all())
+
+    @BaseDB.ensure_car
+    async def count_gen(self):
+        return len(await self.gen.filter().all())
 
 
 db: DataBaseController = DataBaseController()

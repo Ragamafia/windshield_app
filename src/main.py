@@ -11,14 +11,12 @@ from config import cfg
 async def run_bot():
     bot = DetailerBot()
     logger.info(f'DetailerBot started')
-
     await bot.run()
 
 async def run_server():
     config = uvicorn.Config("app.app:app", host="127.0.0.1", port=8000, reload=True)
     server = uvicorn.Server(config)
     logger.info(f'App started')
-
     await server.serve()
 
 async def run_parser():
@@ -35,9 +33,9 @@ async def main():
     await run_parser()
 
     #server_task = asyncio.create_task(run_server())
-    #bot_task = asyncio.create_task(run_bot())
+    bot_task = asyncio.create_task(run_bot())
 
-    #await asyncio.gather(server_task, bot_task)
+    await asyncio.gather(bot_task)
 
 
 if __name__ == "__main__":
