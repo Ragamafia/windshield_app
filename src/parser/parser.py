@@ -46,6 +46,7 @@ class MainParser:
                         await asyncio.gather(*task)
 
                 elif gen := await db.get_gen_to_parse():
+                    await self._download_image(*gen)
                     if result := await self._parse_gen(*gen):
                         await db.put_size(*result)
 
@@ -72,6 +73,25 @@ class MainParser:
                 attempts -= 1
                 if attempts:
                     return await self.request(method, url, attempts, **kwargs)
+
+    async def _download_image(self, brand, model, id):
+        page = await self.get(f"{cfg.BASE_URL}/{brand}/{model}/{id}")
+        try:
+            soup = BeautifulSoup(page, "html.parser")
+        except TypeError as e:
+            print(f'ERROR! {e}')
+            return
+
+        image = soup.find('img', {"class": "fluid"})
+        image = await self.get(image['src'])
+
+        save_dir = cfg.path_to_images / brand / model / id
+        save_dir.mkdir(parents=True, exist_ok=True)
+        image_path = save_dir / "img.jpg"
+
+        with open(image_path, 'wb') as file:
+            file.write(image)
+            logger.success(f'Save new image: {brand} {model} {id}')
 
     async def _parse_all_brands(self):
         home = await self.get(cfg.HOME_URL)
@@ -207,8 +227,9 @@ class MainParser:
                     if len(i) >= 3:
                         res.append(i)
 
+
+
             return res[0], res[1]
 
-        except Exception as e:
-            print(f'ERROR! {e}')
-            return
+        except:
+            return None, None

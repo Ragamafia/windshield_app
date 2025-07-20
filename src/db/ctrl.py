@@ -154,6 +154,14 @@ class DataBaseController(BaseDB):
         return len(await self.model.filter().all())
 
     @BaseDB.ensure_car
+    async def count_level_true(self):
+        return len(await self.gen.filter(level=True).all())
+
+    @BaseDB.ensure_car
+    async def count_level_false(self):
+        return len(await self.gen.filter(level=False).all())
+
+    @BaseDB.ensure_car
     async def count_gen(self):
         return len(await self.gen.filter().all())
 

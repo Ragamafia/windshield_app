@@ -9,12 +9,15 @@ from config import cfg
 
 
 def register_main_handlers(bot):
+    count = 0
+
     @bot.router.message(Command(commands=['start']))
     async def start_command(message: Message):
         keyboard = ReplyKeyboardMarkup(
             resize_keyboard=True,
             keyboard=[
-                [KeyboardButton(text='НАЧАТЬ ОПРОС 🚘')]
+                [KeyboardButton(text='НАЧАТЬ ОПРОС 🚘')],
+                [KeyboardButton(text='СТАТИСТИКА')]
             ])
         await message.answer('Чтобы приступить к установке уровней сложности нажмите "НАЧАТЬ ОПРОС"', reply_markup=keyboard)
 
@@ -22,23 +25,6 @@ def register_main_handlers(bot):
         row_1 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(1, 6)]
         row_2 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(6, 11)]
         return InlineKeyboardMarkup(inline_keyboard=[row_1, row_2])
-
-
-    @bot.router.message(lambda message: message.text == "НАЧАТЬ ОПРОС 🚘")
-    async def handle_survey(message: Message):
-        if car := await db.get_model_info():
-            level_none = next(group for group in car["groups"] if group.get("level") is None)
-            image_path = Path(cfg.path_to_images / car.get("brand") / car.get("model") / level_none.get("ids")[0] / "img.jpg")
-
-            await message.answer_photo(
-                photo=FSInputFile(image_path),
-                caption=f"Уровень сложности для\n"
-                        f"{car.get("brand").upper()} {car.get("model").upper()}, "
-                        f"{level_none.get("gen")} поколение, {level_none.get("years")}",
-                reply_markup=level_buttons()
-            )
-        else:
-            await message.answer(text="Все автомобили в базе обработаны!")
 
     async def next_car(callback_query: CallbackQuery):
         if car := await db.get_model_info():
@@ -58,6 +44,23 @@ def register_main_handlers(bot):
             await callback_query.answer(text="Все автомобили в базе обработаны!")
 
 
+    @bot.router.message(lambda message: message.text == "НАЧАТЬ ОПРОС 🚘")
+    async def handle_survey(message: Message):
+        if car := await db.get_model_info():
+            level_none = next(group for group in car["groups"] if group.get("level") is None)
+            image_path = Path(cfg.path_to_images / car.get("brand") / car.get("model") / level_none.get("ids")[0] / "img.jpg")
+
+            await message.answer_photo(
+                photo=FSInputFile(image_path),
+                caption=f"Уровень сложности для\n"
+                        f"{car.get("brand").upper()} {car.get("model").upper()}, "
+                        f"{level_none.get("gen")} поколение, {level_none.get("years")}",
+                reply_markup=level_buttons()
+            )
+        else:
+            await message.answer(text="Все автомобили в базе обработаны!")
+
+
     @bot.router.callback_query(lambda c: c.data and c.data.startswith('level_'))
     async def process_level_callback(callback_query: CallbackQuery):
         level = callback_query.data.split('_')[1]
@@ -70,3 +73,9 @@ def register_main_handlers(bot):
         await bot.send_message(callback_query.from_user.id, f"Выбран уровень сложности - {level}.")
         await db.update_info(gen, level)
         await next_car(callback_query)
+
+    @bot.router.message(lambda message: message.text == "СТАТИСТИКА")
+    async def handle_processed(message: Message):
+        models_true = await db.count_level_true()
+        models_false = await db.count_level_false()
+        await message.answer(f"Обработано - {models_true}\n Осталось - {models_false}")
