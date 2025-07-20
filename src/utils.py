@@ -2,7 +2,6 @@ import json
 import asyncio
 import random
 from typing import Type
-from pathlib import Path
 
 from tortoise.models import Model
 from PIL import Image
@@ -17,8 +16,6 @@ from config import cfg
 
 class CheckerImage(BaseDB):
     gen: Type[Model] = GenDBModel
-    save_dir: Path = cfg.path_to_images
-
 
     async def get(self, url):
         async with ClientSession(headers=cfg.headers) as self.session:
@@ -41,7 +38,7 @@ class CheckerImage(BaseDB):
                     return await self.request(method, url, attempts, **kwargs)
 
     async def check_image(self, brand, model, id, year_start, year_end):
-        save_dir = self.save_dir / brand / model / id
+        save_dir = cfg.path_to_images / brand / model / id
         save_dir.mkdir(parents=True, exist_ok=True)
         image_path = save_dir / "img.jpg"
 
