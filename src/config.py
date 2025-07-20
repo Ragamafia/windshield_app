@@ -19,12 +19,6 @@ class Config(BaseSettings):
         "User-Agent": UserAgent().random
     }
 
-    scheme: str = ''
-    proxy_user: str = ''
-    proxy_pass: str = ''
-    proxy_host: str = ''
-    proxy_port: str = ''
-
     bot_token: str = ''
 
     proxy_check_timeout: int = 60

@@ -51,6 +51,15 @@ class DataBaseController(BaseDB):
                 await self.gen.filter(id=gen.id).update(processed=True)
                 return gen.brand, gen.model, gen.glass_id
 
+    @BaseDB.ensure_car
+    async def get_images_for_check(self):
+        async with self.gen_lock:
+            result = []
+            if cars := await self.gen.filter().all():
+                for car in cars:
+                    result.append([car.brand, car.model, car.glass_id, car.year_start, car.year_end])
+            return result
+
 
     @BaseDB.ensure_car
     async def put_brands(self, brand):

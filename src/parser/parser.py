@@ -3,13 +3,11 @@ import random
 import re
 
 from aiohttp import ClientSession, ClientTimeout
-from aiohttp_proxy import ProxyConnector
 from bs4 import BeautifulSoup
 
 from db.ctrl import db
 from config import cfg
 from logger import logger
-from utils import save_image
 
 
 class MainParser:
@@ -21,9 +19,6 @@ class MainParser:
     @staticmethod
     async def new_session():
         timeout = ClientTimeout(total=cfg.proxy_check_timeout)
-        proxy = (f"{cfg.scheme}://{cfg.proxy_user}:{cfg.proxy_pass}@"
-                 f"{cfg.proxy_host}:{cfg.proxy_port}")
-        connector = ProxyConnector.from_url(proxy)
         return ClientSession(connector=None, timeout=timeout, headers=cfg.headers)
 
     async def ensure_brands(self):
@@ -55,8 +50,8 @@ class MainParser:
                         await db.put_size(*result)
 
                 else:
-                    logger.success(f"Parse models: {await db.count_models()}\n"
-                                   f"Parse cars: {await db.count_gen()}")
+                    logger.success(f"Parsing complete. Models: {await db.count_models()}. "
+                                   f"Total cars: {await db.count_gen()}.")
                     self.started = False
 
     async def get(self, url):
@@ -122,8 +117,6 @@ class MainParser:
                     **self._parse_generation(card),
                 })
 
-                await self._get_image(brand, model, card)
-
             except Exception as e:
                 print(f"Can not parse generation for {brand} {model}:\n "
                       f"{e}\n{card}")
@@ -176,17 +169,6 @@ class MainParser:
             "restyle": restyle
         }
 
-    async def _get_image(self, brand, model, card):
-        try:
-            id = card.find("a")["href"].split("/")[-1]
-        except:
-            id = card.parent.parent["href"].split("/")[-1]
-
-        image = card.find('img', src=True)
-        image = await self.get(image['src'])
-        save_dir = cfg.path_to_images / brand / model / id
-        save_image(save_dir, image)
-
 
     async def _parse_gen(self, brand, model, glass_id):
         url = f"{cfg.BASE_URL}/{brand}/{model}/{glass_id}?filter=front"
@@ -230,4 +212,3 @@ class MainParser:
         except Exception as e:
             print(f'ERROR! {e}')
             return
-
