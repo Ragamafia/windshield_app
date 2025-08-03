@@ -11,11 +11,18 @@ from config import cfg
 def parse_callback_data(callback: str):
     try:
         action, value = callback.split("#", 1)
-        brand, model, year, data = value.split("*") if value else []
-        return action, brand, model, year, data
+        brand, model, years, level = value.split("*") if value else []
+        return action, brand, model, years, level
 
     except ValueError:
         return None, []
+
+def make_cd(cd: "CallBackData", **kwargs):
+    return (f"{kwargs.get("action", cd.action) or ""}#"
+            f"{kwargs.get("brand", cd.brand) or ""}*"
+            f"{kwargs.get("model", cd.model) or ""}*"
+            f"{kwargs.get("years", cd.years) or ""}*"
+            f"{kwargs.get("level", cd.level) or ""}")
 
 
 class CallBackData:
@@ -23,20 +30,16 @@ class CallBackData:
     brand: str
     model: str
     years: str
-    data: str
+    level: str
 
     def __init__(self, callback: CallbackQuery):
-        action, brand, model, years, data = parse_callback_data(callback.data)
+        action, brand, model, years, level = parse_callback_data(callback.data)
         self.action = action
         self.brand = brand
         self.model = model
         self.years = years
-        self.data = data
-
-    async def get_path_to_image(self):
+        self.level = level
         self.start = self.years.split("-")[0]
-        glass_id = await db.get_glass_id(self.brand, self.model, self.start)
-        return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
 
     async def text(self) -> str:
         if self.action == "setup" and not self.brand and not self.model:
@@ -54,13 +57,16 @@ class CallBackData:
             return f"Выберите модель для {self.brand.capitalize()}:"
         elif not self.years:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
-        elif not self.data:
+        elif not self.level:
             gen = await db.get_gen(self.brand, self.model, self.start)
             return (
                 f"Уровень сложности для\n"
                 f"{self.brand.upper()} {self.model.upper()},\n "
                 f"{gen} поколение, {self.years}"
             )
+        else:
+            return (f"Сохранено ✅\n"
+                    f"Уровень сложности - {self.level}.")
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         if self.action == "setup" and not self.brand and not self.model:
@@ -74,14 +80,14 @@ class CallBackData:
         elif not self.brand:
             brands = await db.get_brands()
             return self._get_keyboard(
-                [[(brand.brand.upper(), f"{self.action}#{brand.brand}***")] for brand in brands]
+                [[(brand.brand.upper(), make_cd(self, brand=brand.brand))] for brand in brands]
             )
 
         elif not self.model:
             models = await db.get_models(self.brand)
             result = []
             for model in models:
-                callback_value = f"{self.action}#{self.brand}*{model.model}**"
+                callback_value = make_cd(self, model=model.model)
                 result.append([(model.model.upper(), callback_value)])
             return self._get_keyboard(result)
 
@@ -90,20 +96,31 @@ class CallBackData:
             result = []
             for gen in car_gens:
                 years = f"{gen.year_start}-{gen.year_end}"
-                callback_value = f"{self.action}#{self.brand}*{self.model}*{years}*"
+                callback_value = make_cd(self, years=years)
                 result.append([(years, callback_value)])
             return self._get_keyboard(result)
 
-        elif not self.data:
+        elif not self.level:
             return self.level_buttons()
 
     def level_buttons(self):
-        row_1 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(1, 6)]
-        row_2 = [InlineKeyboardButton(text=str(level), callback_data=f"level_{level}") for level in range(6, 11)]
-        row_3 = [InlineKeyboardButton(text="NEXT >>>", callback_data="next")]
+        row_1 = [
+            InlineKeyboardButton(
+                text=str(level),
+                callback_data=make_cd(self, level=level)) for level in range(1, 6)
+        ]
+        row_2 = [
+            InlineKeyboardButton(
+                text=str(level),
+                callback_data=make_cd(self, level=level)) for level in range(6, 11)
+        ]
+        row_3 = [
+            InlineKeyboardButton(text="NEXT >>>", callback_data="next")
+        ]
         return InlineKeyboardMarkup(inline_keyboard=[row_1, row_2, row_3])
 
-    def _get_keyboard(self, colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
+    @staticmethod
+    def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text=text, callback_data=callback)
@@ -112,46 +129,37 @@ class CallBackData:
             for text, callback in rows
         ])
 
+    async def get_photo(self):
+        if all((self.brand, self.model, self.start)):
+            glass_id = await db.get_glass_id(self.brand, self.model, self.start)
+            return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
+
 
 def register_main_handlers(bot):
     @bot.router.callback_query()
     async def universal_callback_handler(callback: CallbackQuery):
         data = CallBackData(callback)
-        try:
-            if image_path := await data.get_path_to_image():
-                await _send_photo(callback, image_path)
-        except:
-            ...
         text = await data.text()
         keyboard = await data.keyboard()
-        await callback.message.answer(text, reply_markup=keyboard)
+        if photo := await data.get_photo():
+            await callback.message.answer_photo(
+                photo=FSInputFile(photo),
+                caption=text,
+                reply_markup=keyboard
+            )
+        else:
+            await callback.message.answer(text, reply_markup=keyboard)
 
 
     @bot.router.message(CommandStart())
     async def start_handler(message: Message):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        keyboard = CallBackData._get_keyboard([
             [
-                InlineKeyboardButton(text="Редактировать", callback_data="edit#***"),
-                InlineKeyboardButton(text="Установить сложность", callback_data="setup#***")
+                ("ВЫБОР АВТО", "select#***"),
+                ("ОПРОС БАЗЫ", "setup#***"),
+            ], [
+                ("СТАТИСТИКА", "stat"),
+                ("ПАРСЕР", "parse"),
             ]
         ])
-        await message.answer("Выберите действие", reply_markup=keyboard)
-
-
-    async def _send_photo(callback: CallbackQuery, image_path: Path):
-        await bot.send_photo(
-            callback.from_user.id,
-            photo=FSInputFile(image_path),
-        )
-
-    # @bot.router.callback_query(lambda c: c.data and c.data.startswith('level_'))
-    # async def process_level_callback(callback_query: CallbackQuery):
-    #     level = callback_query.data.split('_')[1]
-    #     gen = None
-    #     for i in callback_query.message.caption.split():
-    #         if i.isdigit():
-    #             gen = int(i)
-    #             break
-    #
-    #     await bot.send_message(callback_query.from_user.id, f"Выбран уровень сложности - {level}.")
-    #     await db.update_info(gen, level)
+        await message.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
