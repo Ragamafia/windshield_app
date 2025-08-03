@@ -130,7 +130,7 @@ class CallBackData:
         ])
 
     async def get_photo(self):
-        if all((self.brand, self.model, self.start)):
+        if all((self.brand, self.model, self.start, not self.level)):
             glass_id = await db.get_glass_id(self.brand, self.model, self.start)
             return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
 
