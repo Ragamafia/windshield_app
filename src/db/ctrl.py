@@ -6,6 +6,7 @@ from tortoise.models import Model
 from src.db.base import BaseDB
 from src.db.table import BrandDBModel, ModelDBModel, GenDBModel
 from logger import logger
+from config import cfg
 
 
 class DataBaseController(BaseDB):
@@ -62,6 +63,29 @@ class DataBaseController(BaseDB):
 
 
     @BaseDB.ensure_car
+    async def get_brands(self):
+        return await self.brand.filter().all()
+
+    @BaseDB.ensure_car
+    async def get_models(self, brand):
+        return await self.model.filter(brand=brand)
+
+    @BaseDB.ensure_car
+    async def get_gens(self, brand, model):
+        return await self.gen.filter(brand=brand, model=model)
+
+    @BaseDB.ensure_car
+    async def get_gen(self, brand, model, year_start):
+        if car := await self.gen.filter(brand=brand, model=model, year_start=year_start).first():
+            return car.gen
+
+    @BaseDB.ensure_car
+    async def get_glass_id(self, brand, model, year_start):
+        if car := await self.gen.filter(brand=brand, model=model, year_start=year_start).first():
+            return car.glass_id
+
+
+    @BaseDB.ensure_car
     async def put_brands(self, brand):
         if not await self.brand.filter(brand=brand).exists():
             await self.brand.create(brand=brand)
@@ -101,11 +125,13 @@ class DataBaseController(BaseDB):
                 logger.info(f'Update size for ID {glass_id}')
 
 
+
+
     @BaseDB.ensure_car
     async def get_model_info(self):
         async with self.gen_lock:
-            if car := await self.gen.filter(level=False).first():
-                gens = await self.gen.filter(brand=car.brand, model=car.model).order_by("year_start").all()
+            if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start).first():
+                gens = await self.gen.filter(brand=car.brand, model=car.model).order_by("year_start")
                 groups = {}
                 for gen in gens:
                     if gen.gen not in groups:
@@ -131,7 +157,6 @@ class DataBaseController(BaseDB):
                     "model": gens[0].model if gens else "",
                     "groups": fixed,
                 }
-                #print(json.dumps(result, indent=4, default=str))
                 return result
 
     @BaseDB.ensure_car

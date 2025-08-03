@@ -11,22 +11,21 @@ from config import cfg
 
 
 async def run_bot():
-    bot = DetailerBot()
     logger.info(f'DetailerBot started')
+    bot = DetailerBot()
     await bot.run()
 
 async def run_server():
+    logger.info(f'App started')
     config = uvicorn.Config("app.app:app", host="127.0.0.1", port=8000, reload=True)
     server = uvicorn.Server(config)
-    logger.info(f'App started')
     await server.serve()
 
 async def run_parser():
+    logger.info(f'Parse process...')
     workers = []
     for _ in range(cfg.WORKERS_COUNT):
         workers.append(MainParser())
-
-    logger.info(f'Parse process...')
     await workers[0].ensure_brands()
     await asyncio.gather(*[worker.run() for worker in workers])
 
@@ -40,8 +39,8 @@ async def download_image():
 
 
 async def main():
-    await run_parser()
-    await download_image()
+    #await run_parser()
+    #await download_image()
 
     #server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())

@@ -34,6 +34,8 @@ class Config(BaseSettings):
     min_level: int = 1
     max_level: int = 10
 
+    year_start: int = 1998
+
     default_height: int = 900
     default_width: int = 1550
 
