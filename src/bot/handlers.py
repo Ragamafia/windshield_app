@@ -32,6 +32,7 @@ class CallBackData:
     years: str
     level: str
 
+
     def __init__(self, callback: CallbackQuery):
         action, brand, model, years, level = parse_callback_data(callback.data)
         self.action = action
@@ -46,6 +47,9 @@ class CallBackData:
             if no_difficulty := await db.get_model_info():
                 self.brand = no_difficulty["brand"]
                 self.model = no_difficulty["model"]
+                self.years = no_difficulty["groups"][0]["years"]
+                self.start = self.years.split("-")[0]
+
                 return await self.text()
 
             else:
@@ -64,15 +68,20 @@ class CallBackData:
                 f"{self.brand.upper()} {self.model.upper()},\n "
                 f"{gen} поколение, {self.years}"
             )
-        else:
+        elif gen := await db.get_gen(self.brand, self.model, self.start):
+            await db.update_level(self.brand, self.model, gen, self.level)
             return (f"Сохранено ✅\n"
                     f"Уровень сложности - {self.level}.")
+
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         if self.action == "setup" and not self.brand and not self.model:
             if no_difficulty := await db.get_model_info():
                 self.brand = no_difficulty["brand"]
                 self.model = no_difficulty["model"]
+                self.years = no_difficulty["groups"][1]["years"]
+                self.start = self.years.split("-")[0]
+
                 return await self.keyboard()
             else:
                 return
@@ -102,6 +111,7 @@ class CallBackData:
 
         elif not self.level:
             return self.level_buttons()
+
 
     def level_buttons(self):
         row_1 = [
@@ -138,6 +148,7 @@ class CallBackData:
 def register_main_handlers(bot):
     @bot.router.callback_query()
     async def universal_callback_handler(callback: CallbackQuery):
+        print(callback.data)
         data = CallBackData(callback)
         text = await data.text()
         keyboard = await data.keyboard()

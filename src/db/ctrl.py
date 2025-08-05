@@ -130,7 +130,7 @@ class DataBaseController(BaseDB):
     async def get_model_info(self):
         async with self.gen_lock:
             if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start).first():
-                gens = await self.gen.filter(brand=car.brand, model=car.model).order_by("year_start")
+                gens = await self.gen.filter(level=False, brand=car.brand, model=car.model, year_start__gte=cfg.year_start).order_by("year_start")
                 groups = {}
                 for gen in gens:
                     if gen.gen not in groups:
@@ -159,14 +159,13 @@ class DataBaseController(BaseDB):
                 return result
 
     @BaseDB.ensure_car
-    async def update_info(self, gen, level):
-        if car := await self.gen.filter(level=False).first():
-            gens = await self.gen.filter(brand=car.brand, model=car.model, gen=gen).order_by("year_start").all()
+    async def update_level(self, brand, model, gen, level):
+        if gens := await self.gen.filter(brand=brand, model=model, gen=gen).all():
             for car in gens:
                 car.difficulty = level
                 await car.save()
                 await self.gen.filter(id=car.id).update(level=True)
-                logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
+                logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
 
 
     @BaseDB.ensure_car
