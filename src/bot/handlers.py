@@ -27,11 +27,10 @@ def make_cd(cd: "CallBackData", **kwargs):
 
 class CallBackData:
     action: str
-    brand: str
-    model: str
-    years: str
-    level: str
-
+    brand: str | None
+    model: str | None
+    years: str | None
+    level: str | None
 
     def __init__(self, callback: CallbackQuery):
         action, brand, model, years, level = parse_callback_data(callback.data)
@@ -48,7 +47,6 @@ class CallBackData:
                 self.brand = no_difficulty["brand"]
                 self.model = no_difficulty["model"]
                 self.years = no_difficulty["groups"][0]["years"]
-                self.start = self.years.split("-")[0]
 
                 return await self.text()
 
@@ -62,24 +60,31 @@ class CallBackData:
         elif not self.years:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
         elif not self.level:
+            self.start = self.years.split("-")[0]
             gen = await db.get_gen(self.brand, self.model, self.start)
             return (
                 f"Уровень сложности для\n"
                 f"{self.brand.upper()} {self.model.upper()},\n "
                 f"{gen} поколение, {self.years}"
             )
-        elif gen := await db.get_gen(self.brand, self.model, self.start):
+        else:
+            gen = await db.get_gen(self.brand, self.model, self.start)
             await db.update_level(self.brand, self.model, gen, self.level)
-            return (f"Сохранено ✅\n"
-                    f"Уровень сложности - {self.level}.")
+            self.level = None
+            self.brand = None
+            self.model = None
+            self.years = None
+            return await self.text()
 
+            # return f"Сохранено ✅\n"\
+            #        f"Уровень сложности - {self.level}."
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         if self.action == "setup" and not self.brand and not self.model:
             if no_difficulty := await db.get_model_info():
                 self.brand = no_difficulty["brand"]
                 self.model = no_difficulty["model"]
-                self.years = no_difficulty["groups"][1]["years"]
+                self.years = no_difficulty["groups"][0]["years"]
                 self.start = self.years.split("-")[0]
 
                 return await self.keyboard()
@@ -110,7 +115,7 @@ class CallBackData:
             return self._get_keyboard(result)
 
         elif not self.level:
-            return self.level_buttons()
+                return self.level_buttons()
 
 
     def level_buttons(self):
@@ -124,10 +129,8 @@ class CallBackData:
                 text=str(level),
                 callback_data=make_cd(self, level=level)) for level in range(6, 11)
         ]
-        row_3 = [
-            InlineKeyboardButton(text="NEXT >>>", callback_data="next")
-        ]
-        return InlineKeyboardMarkup(inline_keyboard=[row_1, row_2, row_3])
+
+        return InlineKeyboardMarkup(inline_keyboard=[row_1, row_2])
 
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
@@ -140,15 +143,15 @@ class CallBackData:
         ])
 
     async def get_photo(self):
+        print(self.brand, self.model, self.start)
         if all((self.brand, self.model, self.start, not self.level)):
             glass_id = await db.get_glass_id(self.brand, self.model, self.start)
+            print(Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg"))
             return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
-
 
 def register_main_handlers(bot):
     @bot.router.callback_query()
     async def universal_callback_handler(callback: CallbackQuery):
-        print(callback.data)
         data = CallBackData(callback)
         text = await data.text()
         keyboard = await data.keyboard()
@@ -160,7 +163,6 @@ def register_main_handlers(bot):
             )
         else:
             await callback.message.answer(text, reply_markup=keyboard)
-
 
     @bot.router.message(CommandStart())
     async def start_handler(message: Message):

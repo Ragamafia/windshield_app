@@ -188,5 +188,13 @@ class DataBaseController(BaseDB):
     async def count_gen(self):
         return len(await self.gen.filter().all())
 
+    @BaseDB.ensure_car
+    async def _delete(self):
+        car = await self.gen.filter(glass_id=1575).first()
+        await car.delete()
+        await car.save()
+
+
+
 
 db: DataBaseController = DataBaseController()
