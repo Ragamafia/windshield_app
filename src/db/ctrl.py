@@ -160,13 +160,21 @@ class DataBaseController(BaseDB):
 
     @BaseDB.ensure_car
     async def update_level(self, brand, model, gen, level):
-        if gens := await self.gen.filter(brand=brand, model=model, gen=gen).all():
-            for car in gens:
+        if cars := await self.gen.filter(brand=brand, model=model, gen=gen).all():
+            info = {}
+            for car in cars:
                 car.difficulty = level
                 await car.save()
                 await self.gen.filter(id=car.id).update(level=True)
+
+                if car.model not in info:
+                    info[car.model] = [f"{car.year_start}-{car.year_end}"]
+                else:
+                    info[car.model].append(f"{car.year_start}-{car.year_end}")
+
                 logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
 
+            return info
 
     @BaseDB.ensure_car
     async def count_brands(self):

@@ -6,6 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from db.ctrl import db
 from config import cfg
+from logger import logger
 
 
 def parse_callback_data(callback: str):
@@ -40,7 +41,7 @@ class CallBackData:
         self.years = years
         self.level = level
 
-        self.start = self.years.split("-")[0]
+        self.year_start = self.years.split("-")[0]
         self.processed = False
 
     async def text(self) -> str:
@@ -49,12 +50,21 @@ class CallBackData:
                 self.brand = no_difficulty["brand"]
                 self.model = no_difficulty["model"]
                 self.years = no_difficulty["groups"][0]["years"]
-                self.start = self.years.split("-")[0]
+                self.year_start = self.years.split("-")[0]
 
                 return await self.text()
 
             else:
                 return "All done. Drink some beer, dude"
+
+        elif self.action == "stat":
+            logger.info(
+                f"Request statistic. "
+                f"Processed - {await db.count_level_true()}. "
+                f"Left - {await db.count_level_false()}"
+            )
+            return (f"Обработано автомобилей - {await db.count_level_true()}\n"
+                    f"Осталось - {await db.count_level_false()}")
 
         elif not self.brand:
             return f"Выберите бренд:"
@@ -63,27 +73,35 @@ class CallBackData:
         elif not self.years:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
         elif not self.level:
-            gen = await db.get_gen(self.brand, self.model, self.start)
+            gen = await db.get_gen(self.brand, self.model, self.year_start)
             return (
                 f"Уровень сложности для\n"
                 f"{self.brand.upper()} {self.model.upper()},\n "
                 f"{gen} поколение, {self.years}"
             )
         else:
-            gen = await db.get_gen(self.brand, self.model, self.start)
-            await db.update_level(self.brand, self.model, gen, self.level)
+            self.gen = await db.get_gen(self.brand, self.model, self.year_start)
+            self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
 
-            self.processed = True
             self.show_level = self.level
             self.level = None
             self.brand = None
             self.model = None
             self.years = None
+
+            self.processed = True
             return await self.text()
 
-    def saved(self):
-        return (f"Сохранено ✅\n"
-                f"Уровень сложности - {self.show_level}.")
+    def text_saved(self):
+        lines = ["Сохранено ✅"]
+
+        for key, values in self.saved_info.items():
+            lines.append(f'{key.upper()}, {self.gen} поколение.')
+            for v in values:
+                lines.append(v)
+
+        lines.append(f"Уровень сложности - {self.show_level}")
+        return "\n".join(lines)
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         if self.action == "setup" and not self.brand and not self.model:
@@ -96,6 +114,9 @@ class CallBackData:
                 return await self.keyboard()
             else:
                 return
+
+        elif self.action == "stat":
+            return
 
         elif not self.brand:
             brands = await db.get_brands()
@@ -148,8 +169,8 @@ class CallBackData:
         ])
 
     async def get_photo(self):
-        if all((self.brand, self.model, self.start, not self.level)):
-            glass_id = await db.get_glass_id(self.brand, self.model, self.start)
+        if all((self.brand, self.model, self.year_start, not self.level)):
+            glass_id = await db.get_glass_id(self.brand, self.model, self.year_start)
             return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
 
 
@@ -161,7 +182,7 @@ def register_main_handlers(bot):
         keyboard = await data.keyboard()
         if photo := await data.get_photo():
             if data.processed == True:
-                await callback.message.answer(data.saved())
+                await callback.message.answer(data.text_saved())
 
             await callback.message.answer_photo(
                 photo=FSInputFile(photo),
@@ -170,7 +191,7 @@ def register_main_handlers(bot):
             )
         else:
             if data.processed == True:
-                await callback.message.answer(data.saved())
+                await callback.message.answer(data.text_saved())
             await callback.message.answer(text, reply_markup=keyboard)
 
     @bot.router.message(CommandStart())
@@ -180,7 +201,7 @@ def register_main_handlers(bot):
                 ("ВЫБОР АВТО", "select#***"),
                 ("ОПРОС БАЗЫ", "setup#***"),
             ], [
-                ("СТАТИСТИКА", "stat"),
+                ("СТАТИСТИКА", "stat#***"),
                 ("ПАРСЕР", "parse"),
             ]
         ])
