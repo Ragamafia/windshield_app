@@ -1,11 +1,10 @@
 import asyncio
 from typing import Type
-from pathlib import Path
 
 from tortoise.models import Model
 
 from src.db.base import BaseDB
-from src.db.table import BrandDBModel, ModelDBModel, GenDBModel
+from src.db.table import BrandDBModel, ModelDBModel, GenDBModel, User
 from logger import logger
 from config import cfg
 
@@ -14,6 +13,8 @@ class DataBaseController(BaseDB):
     brand: Type[Model] = BrandDBModel
     model: Type[Model] = ModelDBModel
     gen: Type[Model] = GenDBModel
+
+    user: Type[Model] = User
 
     brand_lock: asyncio.Lock()
     model_lock: asyncio.Lock()
@@ -81,7 +82,8 @@ class DataBaseController(BaseDB):
             return car.gen
 
     @BaseDB.ensure_car
-    async def get_glass_id(self, brand, model, year_start):
+    async def get_glass_id(self, brand, model, years):
+        year_start = years.split("-")[0]
         if car := await self.gen.filter(brand=brand, model=model, year_start=year_start).first():
             return car.glass_id
 
@@ -196,13 +198,34 @@ class DataBaseController(BaseDB):
     async def count_gen(self):
         return len(await self.gen.filter().all())
 
+    # @BaseDB.ensure_car
+    # async def _delete(self):
+    #     car = await self.gen.filter(glass_id=1575).first()
+    #     await car.delete()
+    #     await car.save()
+
+
     @BaseDB.ensure_car
-    async def _delete(self):
-        car = await self.gen.filter(glass_id=1575).first()
-        await car.delete()
-        await car.save()
+    async def create_user(self, user):
+        await self.user.create(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name
+        )
 
+    @BaseDB.ensure_car
+    async def create_admin(self, user):
+        await self.user.create(
+            admin=True,
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name
+        )
 
+    @BaseDB.ensure_car
+    async def get_user(self, user_id):
+        if user := await self.user.filter(user_id=user_id).first():
+            return user
 
 
 db: DataBaseController = DataBaseController()
