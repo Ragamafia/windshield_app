@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from src.db.table import GenDBModel
 from src.db.base import BaseDB
+from src.db.ctrl import db
 from logger import logger
 from config import cfg
 
@@ -82,3 +83,13 @@ def dict_to_json(data, file_path):
 
 
 checker: CheckerImage = CheckerImage()
+
+
+class Calculate:
+    height: int | None
+    width: int | None
+    difficulty: int | None
+
+    async def _get_size(self, glass_id):
+        self.height, self.width = await db.get_size(glass_id)
+        return self.height, self.width

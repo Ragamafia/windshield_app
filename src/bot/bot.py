@@ -23,7 +23,7 @@ class DetailerBot(Bot):
 
     async def run(self):
         await self.set_my_commands([
-            BotCommand(command='/start', description='Start bot')
+            BotCommand(command='/start', description='Start bot 🟢')
         ])
         await self.dp.start_polling(self)
 
@@ -31,6 +31,7 @@ class DetailerBot(Bot):
     def authorize(self, handler):
         @functools.wraps(handler)
         async def wrapper(callback: Message | CallbackQuery):
+            print(callback.from_user.id, callback.from_user.username, callback.from_user.first_name)
             if user := await db.get_user(callback.from_user.id):
                 return await handler(callback, user)
             else:

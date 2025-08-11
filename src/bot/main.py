@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.types import CallbackQuery
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
+from utils import Calculate
 from db.models import User
 from db.ctrl import db
 from config import cfg
@@ -35,25 +35,23 @@ class CallBackData:
 
     def __init__(self, callback: CallbackQuery, user: User):
         parsed = parse_callback_data(callback.data)
-
+        self.user = user
         self.action, self.brand, self.model, self.years, self.level = parsed
         self.year_start = self.years.split("-")[0]
-        self.processed = False
         self.finish = False
-        self.user = user
 
-    async def post_init(self):
+    async def saved_level(self):
         if self.action == "edit" and self.level:
             self.gen = await db.get_gen(self.brand, self.model, self.year_start)
             self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
-
             self.show_level = self.level
-            self.level = None
-            self.brand = None
-            self.model = None
-            self.years = None
+            self.action, self.level, self.brand, self.model, self.years = None, None, None, None, None
 
-            self.processed = True
+        elif self.action == "set" and self.level:
+            self.gen = await db.get_gen(self.brand, self.model, self.year_start)
+            self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
+            self.show_level = self.level
+            self.level, self.brand, self.model, self.years = None, None, None, None
 
     async def text(self) -> str | None:
         if self.action == "set" and not self.brand and not self.model:
@@ -77,11 +75,13 @@ class CallBackData:
             return (f"Обработано автомобилей - {await db.count_level_true()}\n"
                     f"Осталось - {await db.count_level_false()}")
 
-        elif not self.brand:
+        elif self.action == "car" and not self.brand:
             return f"Выберите бренд:"
-        elif not self.model:
+
+        elif self.action == "car" and not self.model:
             return f"Выберите модель для {self.brand.capitalize()}:"
-        elif not self.years:
+
+        elif self.action == "car" and not self.years:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
 
         elif self.action == "car":
@@ -91,14 +91,33 @@ class CallBackData:
                 f"{gen} поколение, {self.years}\n"
                 f"Выберите действие"
             )
-
-        else:
+        elif self.action == "info":
+            id = await db.get_glass_id(self.brand, self.model, self.year_start)
             gen = await db.get_gen(self.brand, self.model, self.year_start)
+            height, width = await Calculate()._get_size(id)
             return (
-                f"Выберите уровень сложности\n"
-                f"{self.brand.upper()} {self.model.upper()},\n "
+                f"{self.brand.upper()} {self.model.upper()},\n"
+                f"{gen} поколение, {self.years}\n"
+                f"Размер лобового стекла: \n"
+                f"Высота - {height}\n"
+                f"Ширина - {width}\n"
+            )
+
+        elif gen := await db.get_gen(self.brand, self.model, self.year_start):
+            return (
+                f"Установите уровень сложности\n"
+                f"{self.brand.upper()} {self.model.upper()},\n"
                 f"{gen} поколение, {self.years}"
             )
+        else:
+            lines = ["Сохранено ✅"]
+            for key, values in self.saved_info.items():
+                lines.append(f'{key.upper()}, {self.gen} поколение.')
+                for v in values:
+                    lines.append(v)
+            lines.append(f"Уровень сложности - {self.show_level}")
+
+            return "\n".join(lines)
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
@@ -110,7 +129,7 @@ class CallBackData:
 
     async def _get_action_buttons(self):
         match self.action:
-            case "set":
+            case "set" :
                 if no_difficulty := await db.get_model_info():
                     self.brand = no_difficulty["brand"]
                     self.model = no_difficulty["model"]
@@ -140,7 +159,7 @@ class CallBackData:
             return [[(f"{g.year_start}-{g.year_end}",
                       make_cd(self, years=f"{g.year_start}-{g.year_end}"))] for g in car_gens]
 
-        elif self.action == "edit" or self.action == "set" and self.user.admin:
+        elif self.action == "edit" or self.action == "set":
             return [
                 [(str(level), make_cd(self, level=level)) for level in range(1, 6)],
                 [(str(level), make_cd(self, level=level)) for level in range(6, 11)]
@@ -148,43 +167,29 @@ class CallBackData:
         else:
             if self.user.admin:
                 return [
-                    [("ПОЛУЧИТЬ ИНФО", make_cd(self, action="info"))],
-                    [("РЕДАКТИРОВАТЬ", make_cd(self, action="edit"))]
+                    [("ПОЛУЧИТЬ ИНФО ℹ️", make_cd(self, action="info"))],
+                    [("РЕДАКТИРОВАТЬ ⚙️", make_cd(self, action="edit"))]
             ]
             else:
                 return [
-                    [("ПОЛУЧИТЬ ИНФО", make_cd(self, action="info"))],
-                    [("СВЯЗАТЬСЯ С МАСТЕРОМ", make_cd(self, action="contact"))]
+                    [("ПОЛУЧИТЬ ИНФО ℹ️", make_cd(self, action="info"))],
+                    [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", make_cd(self, action="contact"))]
                 ]
-            return []
 
     async def _get_pagination_buttons(self):
         return []
 
     async def _get_go_back_buttons(self):
-        return [[("ГЛАВНОЕ МЕНЮ", "/start")]]
-
-
-    def text_saved(self):
-        lines = ["Сохранено ✅"]
-
-        for key, values in self.saved_info.items():
-            lines.append(f'{key.upper()}, {self.gen} поколение.')
-            for v in values:
-                lines.append(v)
-
-        lines.append(f"Уровень сложности - {self.show_level}")
-        return "\n".join(lines)
+        return [[("ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
 
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text=text, callback_data=callback)
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=text, callback_data=callback) for text, callback in row]
+                for row in colls
             ]
-            for rows in colls
-            for text, callback in rows
-        ])
+        )
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):
