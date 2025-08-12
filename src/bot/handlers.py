@@ -3,16 +3,11 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from bot.main import CallBackData
-from db.models import User
+from models import User
 
 
 def register_main_handlers(bot):
     @bot.router.callback_query(F.data.startswith("/start"))
-    @bot.authorize
-    async def start_callback(callback: CallbackQuery, user: User):
-        keyboard = await start_handler(callback)
-        await callback.message.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
-
     @bot.router.message(CommandStart())
     @bot.authorize
     async def start_handler(message: Message | CallbackQuery, user: User):
@@ -28,16 +23,15 @@ def register_main_handlers(bot):
             ]
         else:
             keyboard = [
-            [
-                ("ВЫБОР АВТО 🚘", "car#***"),
-            ], [
-                ("СВЯЗАТЬСЯ С НАМИ 📱", "contact#***"),
+                [
+                    ("ВЫБОР АВТО 🚘", "car#***"),
+                ], [
+                    ("СВЯЗАТЬСЯ С НАМИ 📱", "contact#***"),
+                ]
             ]
-        ]
         keyboard = CallBackData._get_keyboard(keyboard)
-        await message.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
-
-        return keyboard
+        msg = message if isinstance(message, Message) else message.message
+        await msg.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
 
 
     @bot.router.callback_query()

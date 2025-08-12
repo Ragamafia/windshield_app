@@ -198,20 +198,31 @@ class DataBaseController(BaseDB):
     async def count_gen(self):
         return len(await self.gen.filter().all())
 
-    # @BaseDB.ensure_car
-    # async def _delete(self):
-    #     car = await self.gen.filter(glass_id=1575).first()
-    #     await car.delete()
-    #     await car.save()
+    @BaseDB.ensure_car
+    async def _delete(self):
+        car = await self.user.filter(user_id=328216592).first()
+        await car.delete()
+        await car.save()
 
 
     @BaseDB.ensure_car
-    async def create_user(self, user):
+    async def create_user(self, user_id, username, first_name, admin: bool):
         await self.user.create(
-            user_id=user.id,
-            username=user.username,
-            first_name=user.first_name
+            user_id=user_id,
+            username=username,
+            first_name=first_name,
+            admin=admin
         )
+        if user := await self.user.filter(user_id=user_id).first():
+
+            result = {}
+            result["user_id"] = user.user_id
+            result["username"] = user.username
+            result["first_name"] = user.first_name
+            result["admin"] = user.admin
+
+            return result
+
 
     @BaseDB.ensure_car
     async def create_admin(self, user):

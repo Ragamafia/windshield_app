@@ -13,7 +13,7 @@ class UserLogs(Model):
     user_id = fields.IntField(max_length=50, null=True)
     record = fields.CharField(max_length=100, null=True)
     type =fields.CharField(max_length=50, null=True)
-    ts = fields.DatetimeField()
+    ts = fields.DatetimeField(max_length=50, null=True)
 
 
 class BrandDBModel(Model):

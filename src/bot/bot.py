@@ -6,6 +6,7 @@ from aiogram.types import BotCommand, Message, CallbackQuery
 
 from src.bot.handlers import register_main_handlers
 from src.db.ctrl import db
+from models import User
 from config import cfg
 from logger import logger
 
@@ -27,21 +28,20 @@ class DetailerBot(Bot):
         ])
         await self.dp.start_polling(self)
 
-
     def authorize(self, handler):
         @functools.wraps(handler)
         async def wrapper(callback: Message | CallbackQuery):
-            print(callback.from_user.id, callback.from_user.username, callback.from_user.first_name)
-            if user := await db.get_user(callback.from_user.id):
+            msg = callback if isinstance(callback, Message) else callback
+            if user := await db.get_user(msg.from_user.id):
                 return await handler(callback, user)
             else:
-                if callback.from_user.id in cfg.admins:
-                    await db.create_admin(callback.from_user)
-                    logger.info(f'Create user: {callback.from_user.first_name}. Status ADMIN')
-                else:
-                    await db.create_user(callback.from_user)
-                    logger.info(f'Create user: {callback.from_user.first_name}')
-
+                user = callback.from_user
+                user_dict = await db.create_user(
+                    user.id, user.username, user.first_name, admin=user.id in cfg.admins
+                )
+                print(user_dict)
+                logger.info(f'Create user: {user.username}, ID {user.id}. is_admin={user_dict['admin']}')
+                user = User(**user_dict)
                 return await handler(callback, user)
 
         return wrapper

@@ -31,7 +31,7 @@ class Config(BaseSettings):
 
     templates: Path = Path("app/templates")
 
-    admins: list[int] = [] #1377785914
+    admins: list[int] = [1377785914, 328216592, 1015877207]
 
     min_level: int = 1
     max_level: int = 10

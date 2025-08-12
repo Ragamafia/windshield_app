@@ -43,6 +43,7 @@ async def main():
     #await download_image()
 
     #server_task = asyncio.create_task(run_server())
+    #await db._delete()
     bot_task = asyncio.create_task(run_bot())
     await asyncio.gather(bot_task)
 

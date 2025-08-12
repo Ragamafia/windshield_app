@@ -3,7 +3,7 @@ from pathlib import Path
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from utils import Calculate
-from db.models import User
+from models import User
 from db.ctrl import db
 from config import cfg
 from logger import logger
@@ -41,68 +41,27 @@ class CallBackData:
         self.finish = False
 
     async def saved_level(self):
-        if self.action == "edit" and self.level:
-            self.gen = await db.get_gen(self.brand, self.model, self.year_start)
-            self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
-            self.show_level = self.level
-            self.action, self.level, self.brand, self.model, self.years = None, None, None, None, None
-
-        elif self.action == "set" and self.level:
+        if self.level:
             self.gen = await db.get_gen(self.brand, self.model, self.year_start)
             self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
             self.show_level = self.level
             self.level, self.brand, self.model, self.years = None, None, None, None
+            if self.action == "edit":
+                self.action = None
 
     async def text(self) -> str | None:
         if self.action == "set" and not self.brand and not self.model:
-            if no_difficulty := await db.get_model_info():
-                self.brand = no_difficulty["brand"]
-                self.model = no_difficulty["model"]
-                self.years = no_difficulty["groups"][0]["years"]
-                self.year_start = self.years.split("-")[0]
-
-                return await self.text()
-
-            elif self.finish:
-                return "All done. Drink some beer, dude"
-
+            return await self.get_quest_text()
         elif self.action == "stat":
-            logger.info(
-                f"Request statistic. "
-                f"Processed - {await db.count_level_true()}. "
-                f"Left - {await db.count_level_false()}"
-            )
-            return (f"Обработано автомобилей - {await db.count_level_true()}\n"
-                    f"Осталось - {await db.count_level_false()}")
-
-        elif self.action == "car" and not self.brand:
-            return f"Выберите бренд:"
-
-        elif self.action == "car" and not self.model:
-            return f"Выберите модель для {self.brand.capitalize()}:"
-
-        elif self.action == "car" and not self.years:
-            return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
-
+            return await self.get_stat_text()
         elif self.action == "car":
-            gen = await db.get_gen(self.brand, self.model, self.year_start)
-            return (
-                f"{self.brand.upper()} {self.model.upper()}\n"
-                f"{gen} поколение, {self.years}\n"
-                f"Выберите действие"
-            )
+            return await self.get_car_text()
         elif self.action == "info":
-            id = await db.get_glass_id(self.brand, self.model, self.year_start)
-            gen = await db.get_gen(self.brand, self.model, self.year_start)
-            height, width = await Calculate()._get_size(id)
-            return (
-                f"{self.brand.upper()} {self.model.upper()},\n"
-                f"{gen} поколение, {self.years}\n"
-                f"Размер лобового стекла: \n"
-                f"Высота - {height}\n"
-                f"Ширина - {width}\n"
-            )
-
+            return await self.get_info_text()
+        elif self.action == "parse":
+            return await self.get_parse_text()
+        elif self.action == "contact":
+            return await self.get_contact_text()
         elif gen := await db.get_gen(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -118,6 +77,63 @@ class CallBackData:
             lines.append(f"Уровень сложности - {self.show_level}")
 
             return "\n".join(lines)
+
+    async def get_quest_text(self):
+        if no_difficulty := await db.get_model_info():
+            self.brand = no_difficulty["brand"]
+            self.model = no_difficulty["model"]
+            self.years = no_difficulty["groups"][0]["years"]
+            self.year_start = self.years.split("-")[0]
+
+            return await self.text()
+
+        elif self.finish:
+            return "All done. Drink some beer, dude"
+
+    async def get_stat_text(self):
+        logger.info(
+            f"Request statistic. "
+            f"Processed - {await db.count_level_true()}. "
+            f"Left - {await db.count_level_false()}"
+        )
+        return (f"Обработано автомобилей - {await db.count_level_true()}\n"
+                f"Осталось - {await db.count_level_false()}")
+
+    async def get_car_text(self):
+        if self.action == "car" and not self.brand:
+            return f"Выберите бренд:"
+
+        elif self.action == "car" and not self.model:
+            return f"Выберите модель для {self.brand.capitalize()}:"
+
+        elif self.action == "car" and not self.years:
+            return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
+
+        elif self.action == "car":
+            gen = await db.get_gen(self.brand, self.model, self.year_start)
+            return (
+                f"{self.brand.upper()} {self.model.upper()}\n"
+                f"{gen} поколение, {self.years}\n"
+                f"Выберите действие"
+            )
+
+    async def get_info_text(self):
+        id = await db.get_glass_id(self.brand, self.model, self.year_start)
+        gen = await db.get_gen(self.brand, self.model, self.year_start)
+        height, width = await Calculate()._get_size(id)
+        return (
+            f"{self.brand.upper()} {self.model.upper()},\n"
+            f"{gen} поколение, {self.years}\n"
+            f"Размер лобового стекла: \n"
+            f"Высота - {height}\n"
+            f"Ширина - {width}\n"
+        )
+
+    async def get_parse_text(self):
+        return "Sorry, not implemented"
+
+    async def get_contact_text(self):
+        return "Sorry, not implemented"
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
