@@ -4,7 +4,6 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from bot.main import CallBackData
 from models import User
-from logger import logger
 
 
 def register_main_handlers(bot):

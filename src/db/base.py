@@ -34,7 +34,7 @@ class BaseDB:
 
         await Tortoise.init(
             db_url=f"sqlite://{filename}",
-            modules={'models': ['src.db.table']}
+            modules={'models': ['db.table']}
         )
         BaseDB.inited = True
         await Tortoise.generate_schemas()

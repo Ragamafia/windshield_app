@@ -8,9 +8,9 @@ from PIL import Image
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
-from src.db.table import GenDBModel
-from src.db.base import BaseDB
-from src.db.ctrl import db
+from db.table import GenDBModel
+from db.base import BaseDB
+from db.ctrl import db
 from logger import logger
 from config import cfg
 
