@@ -27,34 +27,34 @@ class DataBaseController(BaseDB):
         self.model_lock = asyncio.Lock()
         self.gen_lock = asyncio.Lock()
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def no_brands(self):
         empty = await self.brand.first()
         if empty is None:
             return True
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_brand_to_parse(self):
         async with self.brand_lock:
             if brand := await self.brand.filter(processed=False).first():
                 await self.brand.filter(id=brand.id).update(processed=True)
                 return brand.brand
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_model_to_parse(self):
         async with self.model_lock:
             if model := await self.model.filter(processed=False).first():
                 await self.model.filter(id=model.id).update(processed=True)
                 return model.brand, model.model
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_gen_to_parse(self):
         async with self.gen_lock:
             if gen := await self.gen.filter(processed=False).first():
                 await self.gen.filter(id=gen.id).update(processed=True)
                 return gen.brand, gen.model, gen.glass_id
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_images_for_check(self):
         async with self.gen_lock:
             result = []
@@ -64,43 +64,36 @@ class DataBaseController(BaseDB):
             return result
 
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_brands(self):
         return await self.brand.filter().all()
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_models(self, brand):
         return await self.model.filter(brand=brand)
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_gens(self, brand, model):
         return await self.gen.filter(brand=brand, model=model)
 
-    @BaseDB.ensure_car
-    async def get_gen(self, brand, model, year_start):
-        if car := await self.gen.filter(brand=brand, model=model, year_start=year_start).first():
-            return car.gen
-
-    @BaseDB.ensure_car
-    async def get_glass_id(self, brand, model, years):
-        year_start = years.split("-")[0]
-        if car := await self.gen.filter(brand=brand, model=model, year_start=year_start).first():
-            return car.glass_id
+    @BaseDB.ensure_client
+    async def get_car(self, brand, model, year_start):
+        return await self.gen.filter(brand=brand, model=model, year_start=year_start).first()
 
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def put_brands(self, brand):
         if not await self.brand.filter(brand=brand).exists():
             await self.brand.create(brand=brand)
             logger.info(f'Create brand: {brand}')
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def put_model(self, brand, model):
         if not await self.model.filter(brand=brand, model=model).exists():
             await self.model.create(brand=brand, model=model)
             logger.info(f'Added model: {brand} {model}')
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle):
         if not await self.gen.filter(
                 brand=brand,
@@ -118,7 +111,7 @@ class DataBaseController(BaseDB):
             )
             logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def put_size(self, glass_id, height, width):
         if car := await self.gen.filter(glass_id=glass_id).first():
             if not car.height:
@@ -128,7 +121,7 @@ class DataBaseController(BaseDB):
                 logger.info(f'Update size for ID {glass_id}')
 
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_model_info(self):
         async with self.gen_lock:
             if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start).first():
@@ -160,7 +153,7 @@ class DataBaseController(BaseDB):
                 }
                 return result
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def update_level(self, brand, model, gen, level):
         if cars := await self.gen.filter(brand=brand, model=model, gen=gen).all():
             info = {}
@@ -178,34 +171,24 @@ class DataBaseController(BaseDB):
 
             return info
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def count_brands(self):
-        return len(await self.brand.filter().all())
+        return await self.brand.all().count()
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def count_models(self):
-        return len(await self.model.filter().all())
+        return await self.model.all().count()
 
-    @BaseDB.ensure_car
-    async def count_level_true(self):
-        return len(await self.gen.filter(level=True).all())
-
-    @BaseDB.ensure_car
-    async def count_level_false(self):
-        return len(await self.gen.filter(level=False).all())
-
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def count_gen(self):
-        return len(await self.gen.filter().all())
+        return await self.gen.all().count()
 
-    @BaseDB.ensure_car
-    async def _delete(self):
-        car = await self.user.filter(user_id=328216592).first()
-        await car.delete()
-        await car.save()
+    @BaseDB.ensure_client
+    async def count_processed_level(self, level: bool):
+        return await self.gen.filter(level=level).all().count()
 
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def create_user(self, user_id, username, first_name, admin: bool):
         await self.user.create(
             user_id=user_id,
@@ -214,7 +197,6 @@ class DataBaseController(BaseDB):
             admin=admin
         )
         if user := await self.user.filter(user_id=user_id).first():
-
             result = {}
             result["user_id"] = user.user_id
             result["username"] = user.username
@@ -224,21 +206,12 @@ class DataBaseController(BaseDB):
             return result
 
 
-    @BaseDB.ensure_car
-    async def create_admin(self, user):
-        await self.user.create(
-            admin=True,
-            user_id=user.id,
-            username=user.username,
-            first_name=user.first_name
-        )
-
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_user(self, user_id):
         if user := await self.user.filter(user_id=user_id).first():
             return user
 
-    @BaseDB.ensure_car
+    @BaseDB.ensure_client
     async def get_size(self, glass_id):
         if car := await self.gen.filter(glass_id=glass_id).first():
             return car.height, car.width

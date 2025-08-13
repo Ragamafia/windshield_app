@@ -226,9 +226,6 @@ class MainParser:
                 if i.isdigit():
                     if len(i) >= 3:
                         res.append(i)
-
-
-
             return res[0], res[1]
 
         except:

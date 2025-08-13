@@ -7,7 +7,7 @@ from tortoise.models import Model
 from config import cfg
 
 
-def ensure_car(func):
+def ensure_client(func):
     @wraps(func)
     async def wrapper(self, *args, **kwargs):
         if not self.inited:
@@ -20,7 +20,7 @@ class BaseDB:
     name: str = ""
     inited: bool = False
     model: Type[Model]
-    ensure_car: callable = ensure_car
+    ensure_client: callable = ensure_client
 
     def __init__(self, prefix: str = None):
         if prefix:

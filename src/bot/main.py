@@ -42,8 +42,8 @@ class CallBackData:
 
     async def saved_level(self):
         if self.level:
-            self.gen = await db.get_gen(self.brand, self.model, self.year_start)
-            self.saved_info = await db.update_level(self.brand, self.model, self.gen, self.level)
+            self.car = await db.get_car(self.brand, self.model, self.year_start)
+            self.saved_info = await db.update_level(self.brand, self.model, self.car.gen, self.level)
             self.show_level = self.level
             self.level, self.brand, self.model, self.years = None, None, None, None
             if self.action == "edit":
@@ -62,16 +62,16 @@ class CallBackData:
             return await self.get_parse_text()
         elif self.action == "contact":
             return await self.get_contact_text()
-        elif gen := await db.get_gen(self.brand, self.model, self.year_start):
+        elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
                 f"{self.brand.upper()} {self.model.upper()},\n"
-                f"{gen} поколение, {self.years}"
+                f"{car.gen} поколение, {self.years}"
             )
         else:
             lines = ["Сохранено ✅"]
             for key, values in self.saved_info.items():
-                lines.append(f'{key.upper()}, {self.gen} поколение.')
+                lines.append(f'{key.upper()}, {self.car.gen} поколение.')
                 for v in values:
                     lines.append(v)
             lines.append(f"Уровень сложности - {self.show_level}")
@@ -84,7 +84,6 @@ class CallBackData:
             self.model = no_difficulty["model"]
             self.years = no_difficulty["groups"][0]["years"]
             self.year_start = self.years.split("-")[0]
-
             return await self.text()
 
         elif self.finish:
@@ -93,11 +92,11 @@ class CallBackData:
     async def get_stat_text(self):
         logger.info(
             f"Request statistic. "
-            f"Processed - {await db.count_level_true()}. "
-            f"Left - {await db.count_level_false()}"
+            f"Processed - {await db.count_processed_level(level=True)}. "
+            f"Left - {await db.count_processed_level(level=False)}"
         )
-        return (f"Обработано автомобилей - {await db.count_level_true()}\n"
-                f"Осталось - {await db.count_level_false()}")
+        return (f"Обработано автомобилей - {await db.count_processed_level(level=True)}\n"
+                f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_car_text(self):
         if self.action == "car" and not self.brand:
@@ -110,29 +109,31 @@ class CallBackData:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
 
         elif self.action == "car":
-            gen = await db.get_gen(self.brand, self.model, self.year_start)
+            car = await db.get_car(self.brand, self.model, self.year_start)
             return (
                 f"{self.brand.upper()} {self.model.upper()}\n"
-                f"{gen} поколение, {self.years}\n"
+                f"{car.gen} поколение, {self.years}\n"
                 f"Выберите действие"
             )
 
     async def get_info_text(self):
-        id = await db.get_glass_id(self.brand, self.model, self.year_start)
-        gen = await db.get_gen(self.brand, self.model, self.year_start)
-        height, width = await Calculate()._get_size(id)
+        car= await db.get_car(self.brand, self.model, self.year_start)
+        height, width = await Calculate()._get_size(car.glass_id)
+        logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
         return (
             f"{self.brand.upper()} {self.model.upper()},\n"
-            f"{gen} поколение, {self.years}\n"
+            f"{car.gen} поколение, {self.years}\n"
             f"Размер лобового стекла: \n"
             f"Высота - {height}\n"
             f"Ширина - {width}\n"
         )
 
     async def get_parse_text(self):
+        logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
 
     async def get_contact_text(self):
+        logger.success(f"User {self.user.username}. Request contact")
         return "Sorry, not implemented"
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
@@ -209,5 +210,5 @@ class CallBackData:
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):
-            glass_id = await db.get_glass_id(self.brand, self.model, self.year_start)
-            return Path(cfg.path_to_images / self.brand / self.model / glass_id / "img.jpg")
+            car = await db.get_car(self.brand, self.model, self.year_start)
+            return Path(cfg.path_to_images / self.brand / self.model / car.glass_id / "img.jpg")
