@@ -3,8 +3,8 @@ from typing import Type
 
 from tortoise.models import Model
 
-from db.base import BaseDB
-from db.table import BrandDBModel, ModelDBModel, GenDBModel, User
+from src.db.base import BaseDB
+from src.db.table import BrandDBModel, ModelDBModel, GenDBModel, User
 from logger import logger
 from config import cfg
 

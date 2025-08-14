@@ -14,19 +14,19 @@ def register_main_handlers(bot):
         if user.admin:
             keyboard = [
                 [
-                    ("ВЫБОР АВТО 🚘", "car#***"),
-                    ("ОПРОС БАЗЫ 💿", "set#***"),
+                    ("ВЫБОР АВТО 🚘", "car#***##"),
+                    ("ОПРОС БАЗЫ 💿", "set#***##"),
                 ], [
-                    ("СТАТИСТИКА 📝", "stat#***"),
-                    ("ПАРСЕР 🔍", "parse#***"),
+                    ("СТАТИСТИКА 📝", "stat#***##"),
+                    ("ПАРСЕР 🔍", "parse#***##"),
                 ]
             ]
         else:
             keyboard = [
                 [
-                    ("ВЫБОР АВТО 🚘", "car#***"),
+                    ("ВЫБОР АВТО 🚘", "car#***##"),
                 ], [
-                    ("СВЯЗАТЬСЯ С НАМИ 📱", "contact#***"),
+                    ("СВЯЗАТЬСЯ С НАМИ 📱", "contact#***##"),
                 ]
             ]
         keyboard = CallBackData._get_keyboard(keyboard)
