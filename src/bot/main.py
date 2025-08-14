@@ -176,7 +176,7 @@ class CallBackData:
     async def get_items(self):
         if not self.brand:
             brands = await db.get_brands()
-            return [[(b.brand.upper(), make_cd(self, brand=b.brand))] for b in brands]
+            return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
 
         elif not self.model:
             models = await db.get_models(self.brand)
@@ -213,11 +213,17 @@ class CallBackData:
         if self.action == "car":
             if items := await self.get_items():
                 if len(items) > cfg.MAX_PAGE_SIZE:
-                    if self.page >= 1:
-                        result.append([("⏪⏪⏪", make_cd(self, page=self.page - 1))])
-                    else:
-                        result.append([("⏩⏩⏩", make_cd(self, page=self.page + 1))])
-            return result
+                    pages = len(items) // cfg.MAX_PAGE_SIZE
+                    if self.page > 0:
+                        result.append(("⏪", make_cd(self, page=self.page - 1)))
+
+                    for page in range(1, pages + 1):
+                        name = f"[{page + 1}]" if page == self.page else f"{page + 1}"
+                        result.append((name, make_cd(self, page=page)))
+
+                    if pages != self.page:
+                        result.append(("⏩", make_cd(self, page=self.page + 1)))
+            return [result]
         else:
             return []
 

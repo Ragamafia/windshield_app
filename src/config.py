@@ -32,7 +32,7 @@ class Config(BaseSettings):
     templates: Path = Path("app/templates")
 
     admins: list[int] = [1377785914, 328216592, 1015877207]
-    MAX_PAGE_SIZE: int = 98  # max 98
+    MAX_PAGE_SIZE: int = 50  # max 98
 
     min_level: int = 1
     max_level: int = 10
