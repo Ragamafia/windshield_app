@@ -212,9 +212,8 @@ class DataBaseController(BaseDB):
             return user
 
     @BaseDB.ensure_client
-    async def get_size(self, glass_id):
-        if car := await self.gen.filter(glass_id=glass_id).first():
-            return car.height, car.width
+    async def get_glass(self, glass_id):
+        return await self.gen.filter(glass_id=glass_id).first()
 
 
 db: DataBaseController = DataBaseController()

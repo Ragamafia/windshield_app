@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from bot.main import CallBackData
 from models import User
+from config import cfg
 
 
 def register_main_handlers(bot):
@@ -32,6 +33,14 @@ def register_main_handlers(bot):
         keyboard = CallBackData._get_keyboard(keyboard)
         msg = message if isinstance(message, Message) else message.message
         await msg.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
+
+
+    @bot.router.callback_query(F.data.startswith("contact"))
+    @bot.authorize
+    async def contact_handler(callback: CallbackQuery, user: User):
+        await bot.send_message(user.user_id,
+                               f"Чтобы связаться, перейдите по ссылке: {cfg.admin_url}")
+        await callback.answer()
 
 
     @bot.router.callback_query()

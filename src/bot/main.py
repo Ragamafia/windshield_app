@@ -2,7 +2,7 @@ from pathlib import Path
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
-from utils import Calculate
+from app.calc import Calculate
 from models import User
 from db.ctrl import db
 from config import cfg
@@ -123,15 +123,44 @@ class CallBackData:
 
     async def get_info_text(self):
         car= await db.get_car(self.brand, self.model, self.year_start)
-        height, width = await Calculate()._get_size(car.glass_id)
         logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
-        return (
+        price_usa, price_korea = await Calculate(car.width, car.difficulty).get_prices()
+        film_usa, film_korea = await Calculate(car.width, car.difficulty).get_only_film_prices()
+        no_difficulty = (f"{cfg.default_setup}р. (default❗)")
+        no_height = (f"{cfg.default_height} (default❗)")
+        no_width = (f"{cfg.default_width} (default❗)")
+
+        info = (
+            f"<code>"
             f"{self.brand.upper()} {self.model.upper()},\n"
-            f"{car.gen} поколение, {self.years}\n"
-            f"Размер лобового стекла: \n"
-            f"Высота - {height}\n"
-            f"Ширина - {width}\n"
+            f"{car.gen} поколение, {self.years}\n\n"
+            f"Цена бронирования стекла\n"
+            f"Плёнка США: {price_usa}р.\n"
+            f"Пленка Корея: - {price_korea}р.\n\n"
+            f"</code>"
         )
+        for_user = (
+            f"Для получения точной информации и записи на оклейку обратитесь пожалуйста к мастеру ⬇"
+        )
+        for_admin = (
+                f"<code>"
+                f"Размеры стекла\n"
+                f"Высота: {car.height if car.height else no_height}\n"
+                f"Ширина: {car.width if car.width else no_width}\n\n"
+                f"Стоимость плёнки\n"
+                f"USA: {film_usa}\n"
+                f"KOREA: {film_korea}\n\n"
+                f"Уровень сложности: {car.difficulty}\n"
+                f"Стоимость работы - {cfg.setup.get(car.difficulty) if car.difficulty else no_difficulty}\n\n"
+                f"</code>"
+        )
+
+        if self.user.admin:
+            info += for_admin
+        else:
+            info += for_user
+
+        return info
 
     async def get_parse_text(self):
         logger.info(f"User {self.user.username}. Start parse")
@@ -140,6 +169,7 @@ class CallBackData:
     async def get_contact_text(self):
         logger.success(f"User {self.user.username}. Request contact")
         return "Sorry, not implemented"
+
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
@@ -163,6 +193,13 @@ class CallBackData:
                 return await self.get_car_buttons()
             case "edit":
                 return await self.get_car_buttons()
+            case "info":
+                if not self.user.admin:
+                    return [
+                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", make_cd(self, action="contact"))]
+                    ]
+                else:
+                    return []
             case _:
                 return []
 
@@ -229,6 +266,7 @@ class CallBackData:
 
     async def _get_main_menu_buttons(self):
         return [[("ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
+
 
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:

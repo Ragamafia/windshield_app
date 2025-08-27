@@ -83,13 +83,3 @@ def dict_to_json(data, file_path):
 
 
 checker: CheckerImage = CheckerImage()
-
-
-class Calculate:
-    height: int | None
-    width: int | None
-    difficulty: int | None
-
-    async def _get_size(self, glass_id):
-        self.height, self.width = await db.get_size(glass_id)
-        return self.height, self.width
