@@ -1,28 +1,20 @@
-import json
-
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.app.calc import CarGlass
+from src.app.calc import Calculate
+from db.ctrl import db
 from config import cfg
 
 
 app = FastAPI()
 templates = Jinja2Templates(directory=cfg.templates)
 
-with open(cfg.path_to_json_base, "r", encoding='utf-8') as file:
-    data = json.load(file)
-
-with open(cfg.path_to_json_hard, "r", encoding='utf-8') as file:
-    hard = json.load(file)
-
-HARD_CARS = set([l.strip() for l in hard])
-
 
 @app.get("/", response_class=HTMLResponse)
 async def main(request: Request):
-    brands = list(data.keys())
+    brands = await db.get_brands()
+    brands = [brand.brand for brand in brands]
 
     markup = {
         "request": request,
@@ -33,8 +25,8 @@ async def main(request: Request):
 
 @app.get("/brand/{brand}", response_class=HTMLResponse)
 async def show_models(request: Request, brand: str):
-    brands = data.get(brand)
-    models = list(brands.keys())
+    models = await db.get_models(brand)
+    models = [model.model for model in models]
 
     markup = {
         "request": request,
@@ -46,9 +38,8 @@ async def show_models(request: Request, brand: str):
 
 @app.get("/{brand}/{model}", response_class=HTMLResponse)
 async def show_gens(request: Request, brand: str, model: str):
-    brands = data.get(brand)
-    models = brands.get(model)
-    gens = list(models.keys())
+    gens = await db.get_gens(brand, model)
+    gens = sorted(f"{gen.year_start}-{gen.year_end}" for gen in gens)
 
     markup = {
         "request": request,
@@ -59,24 +50,19 @@ async def show_gens(request: Request, brand: str, model: str):
     return templates.TemplateResponse("gens.html", markup)
 
 
-@app.get("/{brand}/{model}/{gen}", response_class=HTMLResponse)
-async def show_info(request: Request, brand: str, model: str, gen:str):
-    brands = data.get(brand)
-    models = brands.get(model)
-    size = models.get(gen)
-    high_level = False
-
-    if '*'.join([brand, model, gen]) in HARD_CARS:
-        high_level = True
-
-    price_usa, price_korea = CarGlass(size[1], high_level).get_prices()
+@app.get("/{brand}/{model}/{years}", response_class=HTMLResponse)
+async def show_info(request: Request, brand: str, model: str, years:str):
+    year_start = years.split("-")[0]
+    car = await db.get_car(brand, model, year_start)
+    price_usa, price_korea = await Calculate(car.width, car.difficulty).get_prices()
 
     markup = {
         "request": request,
         "brand": brand,
         "model": model,
-        "gen": gen,
-        "size": size,
+        "gen": f"{car.gen} поколение",
+        "years": years,
+        "size": f"{car.height} x {car.width} мм",
         'price_usa': price_usa,
         'price_korea': price_korea
     }

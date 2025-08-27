@@ -48,7 +48,9 @@
 </head>
 <body>
 <h1> {{ model.capitalize() }}</h1>
+<h2> {{ gen }}</h2>
 <ul>
+
 {% for gen in gens %}
     <li><a href="/{{ brand }}/{{ model }}/{{ gen }}">{{ gen.capitalize() }}</a></li>
 {% endfor %}

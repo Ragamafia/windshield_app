@@ -42,10 +42,9 @@ async def main():
     #await run_parser()
     #await download_image()
 
-    #server_task = asyncio.create_task(run_server())
-
+    server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())
-    await asyncio.gather(bot_task)
+    await asyncio.gather(server_task, bot_task)
 
 
 if __name__ == "__main__":
