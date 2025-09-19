@@ -26,13 +26,12 @@ class Config(BaseSettings):
     WORKERS_COUNT: int = 5
 
     sql_lite_db_path: Path = Path("../data/database.db")
-    path_to_json_base: Path = Path("../data/base.json")
     path_to_images: Path = Path("../data/images/")
 
     templates: Path = Path("app/templates")
 
-    admins: list[int] = [1377785914, 328216592, 1015877207]
-    admin_url: str = "https://t.me/raga_mafia"
+    admins: list[int] = [1377785914, 1015877207]
+    admin_url: str = "https://t.me/TonirStark"
 
     MAX_PAGE_SIZE: int = 50  # max 98
 
@@ -49,16 +48,16 @@ class Config(BaseSettings):
     price_pm_korea: int = 4000
 
     setup: dict = {
-        1: 17000,
-        2: 19000,
-        3: 21000,
-        4: 23000,
-        5: 25000,
-        6: 27000,
-        7: 29000,
-        8: 31000,
-        9: 33000,
-        10: 35000
+        1: 8000,
+        2: 9000,
+        3: 10000,
+        4: 11000,
+        5: 12000,
+        6: 13000,
+        7: 14000,
+        8: 16000,
+        9: 18000,
+        10: 20000
     }
 
 
