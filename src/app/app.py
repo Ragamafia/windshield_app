@@ -27,7 +27,6 @@ async def main(request: Request):
 async def show_models(request: Request, brand: str):
     models = await db.get_models(brand)
     models = [model.model for model in models]
-
     markup = {
         "request": request,
         "brand": brand,
@@ -40,7 +39,6 @@ async def show_models(request: Request, brand: str):
 async def show_gens(request: Request, brand: str, model: str):
     gens = await db.get_gens(brand, model)
     gens = sorted(f"{gen.year_start}-{gen.year_end}" for gen in gens)
-
     markup = {
         "request": request,
         "brand": brand,
@@ -55,7 +53,6 @@ async def show_info(request: Request, brand: str, model: str, years:str):
     year_start = years.split("-")[0]
     car = await db.get_car(brand, model, year_start)
     price_usa, price_korea = await Calculate(car.width, car.difficulty).get_prices()
-
     markup = {
         "request": request,
         "brand": brand,

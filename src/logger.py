@@ -1,4 +1,4 @@
-import os   # noqa
+import os
 
 os.environ[
     "LOGURU_FORMAT"

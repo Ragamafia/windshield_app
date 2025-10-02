@@ -4,7 +4,7 @@ from typing import Type
 from tortoise.models import Model
 
 from src.db.base import BaseDB
-from src.db.table import BrandDBModel, ModelDBModel, GenDBModel, User
+from src.db.table import BrandDBModel, ModelDBModel, GenDBModel, User, Partner
 from logger import logger
 from config import cfg
 
@@ -13,8 +13,8 @@ class DataBaseController(BaseDB):
     brand: Type[Model] = BrandDBModel
     model: Type[Model] = ModelDBModel
     gen: Type[Model] = GenDBModel
-
     user: Type[Model] = User
+    partner: Type[Model] = Partner
 
     brand_lock: asyncio.Lock()
     model_lock: asyncio.Lock()
@@ -22,7 +22,6 @@ class DataBaseController(BaseDB):
 
     def __init__(self):
         super().__init__()
-
         self.brand_lock = asyncio.Lock()
         self.model_lock = asyncio.Lock()
         self.gen_lock = asyncio.Lock()
@@ -120,6 +119,11 @@ class DataBaseController(BaseDB):
                 await car.save()
                 logger.info(f'Update size for ID {glass_id}')
 
+    @BaseDB.ensure_client
+    async def put_partner(self, name):
+        if not await self.partner.filter(name=name).exists():
+            await self.partner.create(name=name)
+            logger.info(f'Create partner: {name}')
 
     @BaseDB.ensure_client
     async def get_model_info(self):
@@ -210,6 +214,10 @@ class DataBaseController(BaseDB):
     async def get_user(self, user_id):
         if user := await self.user.filter(user_id=user_id).first():
             return user
+
+    @BaseDB.ensure_client
+    async def get_partners(self):
+        return await self.partner.all()
 
     @BaseDB.ensure_client
     async def get_glass(self, glass_id):

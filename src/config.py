@@ -29,9 +29,9 @@ class Config(BaseSettings):
     path_to_images: Path = Path("../data/images/")
 
     templates: Path = Path("app/templates")
-
-    admins: list[int] = [1377785914, 1015877207]
-    admin_url: str = "https://t.me/TonirStark"
+# 1377785914
+    admins: list[int] = [1015877207]
+    admin_url: str = "https://t.me/raga_mafia"
 
     MAX_PAGE_SIZE: int = 50  # max 98
 
@@ -42,7 +42,7 @@ class Config(BaseSettings):
 
     default_height: int = 900
     default_width: int = 1550
-    default_setup: int = 25000
+    default_setup: int = 12000
 
     price_pm_usa: int = 8000
     price_pm_korea: int = 4000

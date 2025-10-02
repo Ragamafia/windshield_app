@@ -29,7 +29,6 @@ def make_cd(cd: "CallBackData", **kwargs):
             f"{kwargs.get("level", cd.level) or ""}##"
             f"{kwargs.get("page", cd.page) or ""}")
 
-
 class CallBackData:
     action: str | None
     brand: str | None
@@ -65,8 +64,10 @@ class CallBackData:
             return await self.get_info_text()
         elif self.action == "parse":
             return await self.get_parse_text()
-        elif self.action == "contact":
-            return await self.get_contact_text()
+        elif self.action == "partner":
+            return "Введите имя партнера или название компании"
+        elif self.action == "partners":
+            return "Партнёры"
         elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -92,7 +93,7 @@ class CallBackData:
             return await self.text()
 
         elif self.finish:
-            return "All done. Drink some beer, dude"
+            return "All done. Drink some beer, dude)"
 
     async def get_stat_text(self):
         logger.info(
@@ -166,11 +167,6 @@ class CallBackData:
         logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
 
-    async def get_contact_text(self):
-        logger.success(f"User {self.user.username}. Request contact")
-        return "Sorry, not implemented"
-
-
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
             * await self._get_action_buttons(),
@@ -193,6 +189,12 @@ class CallBackData:
                 return await self.get_car_buttons()
             case "edit":
                 return await self.get_car_buttons()
+            case "partners":
+                partners = await db.get_partners()
+                return [
+                    [(name.name, make_cd(self, action=name.name))] for name in partners
+                ]
+
             case "info":
                 if not self.user.admin:
                     return [

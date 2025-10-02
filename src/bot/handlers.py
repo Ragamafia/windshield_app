@@ -3,6 +3,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from bot.main import CallBackData
+from db.ctrl import db
 from models import User
 from config import cfg
 
@@ -20,6 +21,10 @@ def register_main_handlers(bot):
                 ], [
                     ("СТАТИСТИКА 📝", "stat#***##"),
                     ("ПАРСЕР 🔍", "parse#***##"),
+                ], [
+                    ("ДОБАВИТЬ ПАРТНЁРА", "partner#***##")
+                ], [
+                    ("ПОЛУЧИТЬ СПИСОК ПАРТНЕРОВ", "partners#***##")
                 ]
             ]
         else:
@@ -41,6 +46,13 @@ def register_main_handlers(bot):
         await bot.send_message(user.user_id,
                                f"Чтобы связаться, перейдите по ссылке: {cfg.admin_url}")
         await callback.answer()
+
+
+    @bot.router.message()
+    @bot.authorize
+    async def get_partner_handler(callback: CallbackQuery, user: User):
+        await db.put_partner(callback.text)
+        await bot.send_message(user.user_id, f"Добавлен новый партнер: \n{callback.text}")
 
 
     @bot.router.callback_query()

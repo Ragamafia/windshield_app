@@ -189,10 +189,8 @@ class MainParser:
             "restyle": restyle
         }
 
-
     async def _parse_gen(self, brand, model, glass_id):
         url = f"{cfg.BASE_URL}/{brand}/{model}/{glass_id}?filter=front"
-
         page = await self.get(url)
         try:
             soup = BeautifulSoup(page, "html.parser")
@@ -203,7 +201,6 @@ class MainParser:
         if 'не найден' in soup.text:
             logger.warning(f'No size for: {brand} {model} {glass_id}')
             return None
-
         else:
             info = soup.find("div", {"class": "tech-info"})
             try:

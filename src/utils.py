@@ -10,7 +10,6 @@ from bs4 import BeautifulSoup
 
 from src.db.table import GenDBModel
 from src.db.base import BaseDB
-from src.db.ctrl import db
 from logger import logger
 from config import cfg
 
@@ -68,18 +67,6 @@ class CheckerImage(BaseDB):
         with open(image_path, 'wb') as file:
             file.write(image)
             logger.success(f'Save new image: {brand} {model} {year_start}-{year_end}')
-
-
-def json_to_dict(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        json_str = file.read()
-        dict_list = json.loads(json_str)
-    return dict_list
-
-def dict_to_json(data, file_path):
-    with open(file_path, 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-        print(f'Data saved in {file_path}')
 
 
 checker: CheckerImage = CheckerImage()
