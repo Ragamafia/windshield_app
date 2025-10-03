@@ -41,7 +41,7 @@ async def main():
     await db.setup_db()
     # await run_parser()
     # await download_image()
-    # await db.delete_user(1377785914)
+
     server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())
     await asyncio.gather(server_task, bot_task)

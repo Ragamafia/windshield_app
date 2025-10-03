@@ -69,6 +69,9 @@ class DataBaseController(BaseDB):
     async def get_car(self, brand, model, year_start):
         return await self.gen.filter(brand=brand, model=model, year_start=year_start).first()
 
+    async def get_glass(self, glass_id):
+        return await self.gen.filter(glass_id=glass_id).first()
+
 
     async def put_brands(self, brand):
         if not await self.brand.filter(brand=brand).exists():
@@ -176,7 +179,7 @@ class DataBaseController(BaseDB):
             first_name=first_name,
             admin=admin
         )
-        return await self.user.filter(id=user_id).first().values()
+        return await self.user.filter(user_id=user_id).first().values()
 
     async def get_user(self, user_id):
         if user := await self.user.filter(user_id=user_id).first():
@@ -191,9 +194,6 @@ class DataBaseController(BaseDB):
 
     async def get_partner(self, name):
         return await self.partner.filter(name=name).first()
-
-    async def get_glass(self, glass_id):
-        return await self.gen.filter(glass_id=glass_id).first()
 
 
 db: DataBaseController = DataBaseController()
