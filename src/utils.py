@@ -1,22 +1,16 @@
-import json
 import asyncio
 import random
-from typing import Type
 
-from tortoise.models import Model
 from PIL import Image
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
-from src.db.table import GenDBModel
-from src.db.base import BaseDB
+from db.base import BaseDB
 from logger import logger
 from config import cfg
 
 
 class CheckerImage(BaseDB):
-    gen: Type[Model] = GenDBModel
-
     async def get(self, url):
         async with ClientSession(headers=cfg.headers) as self.session:
             return await self.request("GET", url)
@@ -37,7 +31,7 @@ class CheckerImage(BaseDB):
                 if attempts:
                     return await self.request(method, url, attempts, **kwargs)
 
-    async def check_image(self, brand, model, id, year_start, year_end):
+    async def check_image(self, brand, model, id):
         save_dir = cfg.path_to_images / brand / model / id
         save_dir.mkdir(parents=True, exist_ok=True)
         image_path = save_dir / "img.jpg"
@@ -46,14 +40,14 @@ class CheckerImage(BaseDB):
             try:
                 with Image.open (image_path) as file:
                     file.verify()
-                    logger.debug(f'Image for {brand} {model} {year_start}-{year_end} already exists')
+                    logger.debug(f"Image for {brand} {model} already exists")
             except:
-                await self._download_image(image_path, brand, model, id, year_start, year_end)
+                await self._download_image(image_path, brand, model, id)
 
         else:
-            await self._download_image(image_path, brand, model, id, year_start, year_end)
+            await self._download_image(image_path, brand, model, id)
 
-    async def _download_image(self, image_path, brand, model, id, year_start, year_end):
+    async def _download_image(self, image_path, brand, model, id):
         page = await self.get(f"{cfg.BASE_URL}/{brand}/{model}/{id}")
         try:
             soup = BeautifulSoup(page, "html.parser")
@@ -66,7 +60,4 @@ class CheckerImage(BaseDB):
 
         with open(image_path, 'wb') as file:
             file.write(image)
-            logger.success(f'Save new image: {brand} {model} {year_start}-{year_end}')
-
-
-checker: CheckerImage = CheckerImage()
+            logger.success(f"Save new image: {brand} {model}")

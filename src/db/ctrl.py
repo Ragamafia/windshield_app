@@ -3,8 +3,8 @@ from typing import Type
 
 from tortoise.models import Model
 
-from src.db.base import BaseDB
-from src.db.table import BrandDBModel, ModelDBModel, GenDBModel, User, Partner
+from db.base import BaseDB
+from db.table import BrandDBModel, ModelDBModel, GenDBModel, User, Partner
 from logger import logger
 from config import cfg
 
@@ -26,77 +26,62 @@ class DataBaseController(BaseDB):
         self.model_lock = asyncio.Lock()
         self.gen_lock = asyncio.Lock()
 
-    @BaseDB.ensure_client
     async def no_brands(self):
         empty = await self.brand.first()
         if empty is None:
             return True
 
-    @BaseDB.ensure_client
     async def get_brand_to_parse(self):
         async with self.brand_lock:
             if brand := await self.brand.filter(processed=False).first():
                 await self.brand.filter(id=brand.id).update(processed=True)
                 return brand.brand
 
-    @BaseDB.ensure_client
     async def get_model_to_parse(self):
         async with self.model_lock:
             if model := await self.model.filter(processed=False).first():
                 await self.model.filter(id=model.id).update(processed=True)
                 return model.brand, model.model
 
-    @BaseDB.ensure_client
     async def get_gen_to_parse(self):
         async with self.gen_lock:
             if gen := await self.gen.filter(processed=False).first():
                 await self.gen.filter(id=gen.id).update(processed=True)
                 return gen.brand, gen.model, gen.glass_id
 
-    @BaseDB.ensure_client
     async def get_images_for_check(self):
         async with self.gen_lock:
             result = []
             if cars := await self.gen.filter().all():
                 for car in cars:
-                    result.append([car.brand, car.model, car.glass_id, car.year_start, car.year_end])
+                    result.append([car.brand, car.model, car.glass_id])
             return result
 
-
-    @BaseDB.ensure_client
     async def get_brands(self):
         return await self.brand.filter().all()
 
-    @BaseDB.ensure_client
     async def get_models(self, brand):
         return await self.model.filter(brand=brand)
 
-    @BaseDB.ensure_client
     async def get_gens(self, brand, model):
         return await self.gen.filter(brand=brand, model=model)
 
-    @BaseDB.ensure_client
     async def get_car(self, brand, model, year_start):
         return await self.gen.filter(brand=brand, model=model, year_start=year_start).first()
 
 
-    @BaseDB.ensure_client
     async def put_brands(self, brand):
         if not await self.brand.filter(brand=brand).exists():
             await self.brand.create(brand=brand)
             logger.info(f'Create brand: {brand}')
 
-    @BaseDB.ensure_client
     async def put_model(self, brand, model):
         if not await self.model.filter(brand=brand, model=model).exists():
             await self.model.create(brand=brand, model=model)
             logger.info(f'Added model: {brand} {model}')
 
-    @BaseDB.ensure_client
     async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle):
         if not await self.gen.filter(
-                brand=brand,
-                model=model,
                 glass_id=glass_id,
         ).exists():
             await self.gen.create(
@@ -110,7 +95,6 @@ class DataBaseController(BaseDB):
             )
             logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
 
-    @BaseDB.ensure_client
     async def put_size(self, glass_id, height, width):
         if car := await self.gen.filter(glass_id=glass_id).first():
             if not car.height:
@@ -119,17 +103,15 @@ class DataBaseController(BaseDB):
                 await car.save()
                 logger.info(f'Update size for ID {glass_id}')
 
-    @BaseDB.ensure_client
     async def put_partner(self, name):
         if not await self.partner.filter(name=name).exists():
             await self.partner.create(name=name)
-            logger.info(f'Create partner: {name}')
+            logger.info(f'Create new partner: {name}')
 
-    @BaseDB.ensure_client
     async def get_model_info(self):
         async with self.gen_lock:
-            if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start).first():
-                gens = await self.gen.filter(level=False, brand=car.brand, model=car.model, year_start__gte=cfg.year_start).order_by("year_start")
+            if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start_search).first():
+                gens = await self.gen.filter(level=False, brand=car.brand, model=car.model, year_start__gte=cfg.year_start_search).order_by("year_start")
                 groups = {}
                 for gen in gens:
                     if gen.gen not in groups:
@@ -157,7 +139,6 @@ class DataBaseController(BaseDB):
                 }
                 return result
 
-    @BaseDB.ensure_client
     async def update_level(self, brand, model, gen, level):
         if cars := await self.gen.filter(brand=brand, model=model, gen=gen).all():
             info = {}
@@ -175,24 +156,19 @@ class DataBaseController(BaseDB):
 
             return info
 
-    @BaseDB.ensure_client
+
     async def count_brands(self):
         return await self.brand.all().count()
 
-    @BaseDB.ensure_client
     async def count_models(self):
         return await self.model.all().count()
 
-    @BaseDB.ensure_client
-    async def count_gen(self):
+    async def count_cars(self):
         return await self.gen.all().count()
 
-    @BaseDB.ensure_client
     async def count_processed_level(self, level: bool):
         return await self.gen.filter(level=level).all().count()
 
-
-    @BaseDB.ensure_client
     async def create_user(self, user_id, username, first_name, admin: bool):
         await self.user.create(
             user_id=user_id,
@@ -200,26 +176,22 @@ class DataBaseController(BaseDB):
             first_name=first_name,
             admin=admin
         )
-        if user := await self.user.filter(user_id=user_id).first():
-            result = {}
-            result["user_id"] = user.user_id
-            result["username"] = user.username
-            result["first_name"] = user.first_name
-            result["admin"] = user.admin
+        return await self.user.filter(id=user_id).first().values()
 
-            return result
-
-
-    @BaseDB.ensure_client
     async def get_user(self, user_id):
         if user := await self.user.filter(user_id=user_id).first():
             return user
 
-    @BaseDB.ensure_client
+    async def delete_user(self, user_id):
+        if user := await self.user.filter(user_id=user_id).first():
+            await user.delete()
+
     async def get_partners(self):
         return await self.partner.all()
 
-    @BaseDB.ensure_client
+    async def get_partner(self, name):
+        return await self.partner.filter(name=name).first()
+
     async def get_glass(self, glass_id):
         return await self.gen.filter(glass_id=glass_id).first()
 

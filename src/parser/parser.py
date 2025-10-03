@@ -5,7 +5,7 @@ import re
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 
-from db.ctrl import db
+from db.ctrl import DataBaseController
 from config import cfg
 from logger import logger
 
@@ -15,6 +15,7 @@ class MainParser:
 
     def __init__(self):
         self.started = True
+        self.db = DataBaseController()
 
     @staticmethod
     async def new_session():
@@ -23,10 +24,10 @@ class MainParser:
 
     async def ensure_brands(self):
         async with await self.new_session() as self.session:
-            if await db.no_brands():
+            if await self.db.no_brands():
                 if brands := await self._parse_all_brands():
                     logger.success(f"Parse {len(brands)} brands.")
-                    task = [db.put_brands(brand) for brand in brands]
+                    task = [self.db.put_brands(brand) for brand in brands]
                     await asyncio.gather(*task)
 
                 else:
@@ -35,24 +36,24 @@ class MainParser:
     async def run(self):
         async with await self.new_session() as self.session:
             while self.started:
-                if brand := await db.get_brand_to_parse():
+                if brand := await self.db.get_brand_to_parse():
                     if models := await self._parse_brand(brand):
-                        task = [db.put_model(brand, model) for model in models]
+                        task = [self.db.put_model(brand, model) for model in models]
                         await asyncio.gather(*task)
 
-                elif model := await db.get_model_to_parse():
+                elif model := await self.db.get_model_to_parse():
                     if result := await self._parse_model(*model):
-                        task = [db.put_gen(**res) for res in result]
+                        task = [self.db.put_gen(**res) for res in result]
                         await asyncio.gather(*task)
 
-                elif gen := await db.get_gen_to_parse():
+                elif gen := await self.db.get_gen_to_parse():
                     await self._download_image(*gen)
                     if result := await self._parse_gen(*gen):
-                        await db.put_size(*result)
+                        await self.db.put_size(*result)
 
                 else:
-                    logger.success(f"Parsing complete. Models: {await db.count_models()}. "
-                                   f"Total cars: {await db.count_gen()}.")
+                    logger.success(f"Parsing complete. Models: {await self.db.count_models()}. "
+                                   f"Total cars: {await self.db.count_cars()}.")
                     self.started = False
 
     async def get(self, url):

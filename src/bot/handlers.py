@@ -22,9 +22,7 @@ def register_main_handlers(bot):
                     ("СТАТИСТИКА 📝", "stat#***##"),
                     ("ПАРСЕР 🔍", "parse#***##"),
                 ], [
-                    ("ДОБАВИТЬ ПАРТНЁРА", "partner#***##")
-                ], [
-                    ("ПОЛУЧИТЬ СПИСОК ПАРТНЕРОВ", "partners#***##")
+                    ("НАСТРОЙКИ 🔧", "settings#***##")
                 ]
             ]
         else:
@@ -52,7 +50,9 @@ def register_main_handlers(bot):
     @bot.authorize
     async def get_partner_handler(callback: CallbackQuery, user: User):
         await db.put_partner(callback.text)
-        await bot.send_message(user.user_id, f"Добавлен новый партнер: \n{callback.text}")
+        await bot.send_message(user.user_id, f"СОХРАНЕНО ✅\n"
+                                             f"Новый партнер: \n{callback.text}")
+        await start_handler(callback)
 
 
     @bot.router.callback_query()

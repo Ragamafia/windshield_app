@@ -42,7 +42,6 @@ class CallBackData:
         self.user = user
         self.action, self.brand, self.model, self.years, self.level, self.page = parsed
         self.year_start = self.years.split("-")[0]
-        self.finish = False
 
     async def saved_level(self):
         if self.level:
@@ -61,13 +60,11 @@ class CallBackData:
         elif self.action == "car":
             return await self.get_car_text()
         elif self.action == "info":
-            return await self.get_info_text()
+            return await self.get_glass_info_text()
         elif self.action == "parse":
             return await self.get_parse_text()
-        elif self.action == "partner":
-            return "Введите имя партнера или название компании"
-        elif self.action == "partners":
-            return "Партнёры"
+        elif self.action == "settings":
+            return await self.get_settings_text()
         elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -91,8 +88,7 @@ class CallBackData:
             self.years = no_difficulty["groups"][0]["years"]
             self.year_start = self.years.split("-")[0]
             return await self.text()
-
-        elif self.finish:
+        else:
             return "All done. Drink some beer, dude)"
 
     async def get_stat_text(self):
@@ -122,7 +118,7 @@ class CallBackData:
                 f"Выберите действие"
             )
 
-    async def get_info_text(self):
+    async def get_glass_info_text(self):
         car= await db.get_car(self.brand, self.model, self.year_start)
         logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
         price_usa, price_korea = await Calculate(car.width, car.difficulty).get_prices()
@@ -167,6 +163,16 @@ class CallBackData:
         logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
 
+    async def get_settings_text(self):
+        print(f"!!!!!!!!!!!!!!!!! {self.action}")
+        if self.action == "settings":
+            return "МЕНЮ НАСТРОЕК"
+        elif self.action == "register":
+            return ("Введите нового партнера.\nИмя или название фирмы\n"
+                    '(Для отмены нажмите "ГЛАВНОЕ МЕНЮ")')
+        elif self.action == "partners":
+            return "Партнёры:"
+
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
             * await self._get_action_buttons(),
@@ -189,6 +195,11 @@ class CallBackData:
                 return await self.get_car_buttons()
             case "edit":
                 return await self.get_car_buttons()
+            case "settings":
+                return [
+                    [("ДОБАВИТЬ НОВОГО ПАРТНЁРА ➕", make_cd(self, action="register"))],
+                    [("ПОЛУЧИТЬ СПИСОК ПАРТНЕРОВ 🗂️", make_cd(self, action="partners"))]
+                ]
             case "partners":
                 partners = await db.get_partners()
                 return [

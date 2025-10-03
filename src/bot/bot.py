@@ -4,8 +4,8 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand, Message, CallbackQuery
 
-from src.bot.handlers import register_main_handlers
-from src.db.ctrl import db
+from bot.handlers import register_main_handlers
+from db.ctrl import db
 from models import User
 from config import cfg
 from logger import logger
@@ -19,10 +19,11 @@ class DetailerBot(Bot):
 
         self.router: Router = Router()
         self.dp: Dispatcher = Dispatcher()
+
+    async def run(self):
         self.dp.include_router(self.router)
         register_main_handlers(self)
 
-    async def run(self):
         await self.set_my_commands([
             BotCommand(command='/start', description='Start bot 🟢')
         ])
@@ -39,7 +40,7 @@ class DetailerBot(Bot):
                 user_dict = await db.create_user(
                     user.id, user.username, user.first_name, admin=user.id in cfg.admins
                 )
-                logger.info(f'Create user: {user.username}, ID {user.id}. is_admin={user_dict['admin']}')
+                logger.info(f'Create user: {user.username}, ID {user.id}. is_admin={user.admin}')
                 user = User(**user_dict)
                 return await handler(callback, user)
 

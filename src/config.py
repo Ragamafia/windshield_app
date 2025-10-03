@@ -29,8 +29,8 @@ class Config(BaseSettings):
     path_to_images: Path = Path("../data/images/")
 
     templates: Path = Path("app/templates")
-# 1377785914
-    admins: list[int] = [1015877207]
+
+    admins: list[int] = [1377785914, 1015877207]
     admin_url: str = "https://t.me/raga_mafia"
 
     MAX_PAGE_SIZE: int = 50  # max 98
@@ -38,7 +38,7 @@ class Config(BaseSettings):
     min_level: int = 1
     max_level: int = 10
 
-    year_start: int = 1998
+    year_start_search: int = 1998
 
     default_height: int = 900
     default_width: int = 1550

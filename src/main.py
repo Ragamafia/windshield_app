@@ -2,10 +2,10 @@ import asyncio
 
 import uvicorn
 
-from utils import checker
-from db.ctrl import db
 from bot.bot import DetailerBot
 from parser.parser import MainParser
+from utils import CheckerImage
+from db.ctrl import db
 from logger import logger
 from config import cfg
 
@@ -34,14 +34,14 @@ async def download_image():
     semaphore = asyncio.Semaphore(100)
     cars = await db.get_images_for_check()
     async with semaphore:
-        tasks = [checker.check_image(*car) for car in cars]
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*[CheckerImage().check_image(*car) for car in cars])
 
 
 async def main():
-    #await run_parser()
-    #await download_image()
-
+    await db.setup_db()
+    # await run_parser()
+    # await download_image()
+    # await db.delete_user(1377785914)
     server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())
     await asyncio.gather(server_task, bot_task)

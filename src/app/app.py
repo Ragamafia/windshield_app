@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.app.calc import Calculate
+from app.calc import Calculate
 from db.ctrl import db
 from config import cfg
 
@@ -14,11 +14,9 @@ templates = Jinja2Templates(directory=cfg.templates)
 @app.get("/", response_class=HTMLResponse)
 async def main(request: Request):
     brands = await db.get_brands()
-    brands = [brand.brand for brand in brands]
-
     markup = {
         "request": request,
-        "brands": brands
+        "brands": [brand.brand for brand in brands]
     }
     return templates.TemplateResponse("index.html", markup)
 
@@ -26,11 +24,10 @@ async def main(request: Request):
 @app.get("/brand/{brand}", response_class=HTMLResponse)
 async def show_models(request: Request, brand: str):
     models = await db.get_models(brand)
-    models = [model.model for model in models]
     markup = {
         "request": request,
         "brand": brand,
-        "models": models
+        "models": [model.model for model in models]
     }
     return templates.TemplateResponse("models.html", markup)
 
@@ -38,12 +35,11 @@ async def show_models(request: Request, brand: str):
 @app.get("/{brand}/{model}", response_class=HTMLResponse)
 async def show_gens(request: Request, brand: str, model: str):
     gens = await db.get_gens(brand, model)
-    gens = sorted(f"{gen.year_start}-{gen.year_end}" for gen in gens)
     markup = {
         "request": request,
         "brand": brand,
         "model": model,
-        "gens": gens
+        "gens": sorted(f"{gen.year_start}-{gen.year_end}" for gen in gens)
     }
     return templates.TemplateResponse("gens.html", markup)
 
