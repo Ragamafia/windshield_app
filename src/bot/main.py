@@ -12,11 +12,12 @@ from logger import logger
 def parse_callback_data(callback: str):
     try:
         action, values = callback.split("#", 1)
-        page = callback.split("##", 1)
-        page = int(page[1]) if page[1] else 0
-        brand, model, years, level= values.split("*") if values else []
+        page_partner = values.split("!")
+        page = int(page_partner[1]) if page_partner[1] else 0
+        brand, model, years, level = values.split("*") if values else []
         level = level.split("##")[0]
-        return action, brand, model, years, level, page
+        partner = page_partner[0].split("##")[1]
+        return action, brand, model, years, level, page, partner
 
     except ValueError:
         return None, []
@@ -27,6 +28,7 @@ def make_cd(cd: "CallBackData", **kwargs):
             f"{kwargs.get("model", cd.model) or ""}*"
             f"{kwargs.get("years", cd.years) or ""}*"
             f"{kwargs.get("level", cd.level) or ""}##"
+            f"{kwargs.get("partner", cd.partner) or ""}!"
             f"{kwargs.get("page", cd.page) or ""}")
 
 class CallBackData:
@@ -36,11 +38,12 @@ class CallBackData:
     years: str | None
     level: str | None
     page: int | None
+    partner: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
         parsed = parse_callback_data(callback.data)
         self.user = user
-        self.action, self.brand, self.model, self.years, self.level, self.page = parsed
+        self.action, self.brand, self.model, self.years, self.level, self.page, self.partner = parsed
         self.year_start = self.years.split("-")[0]
 
     async def saved_level(self):
@@ -64,7 +67,11 @@ class CallBackData:
         elif self.action == "parse":
             return await self.get_parse_text()
         elif self.action == "settings":
-            return await self.get_settings_text()
+            return "МЕНЮ НАСТРОЕК"
+        elif self.action == "partners":
+            return "Партнёры:"
+        elif self.action == "register":
+            return await self.get_register_text()
         elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -163,15 +170,9 @@ class CallBackData:
         logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
 
-    async def get_settings_text(self):
-        print(f"!!!!!!!!!!!!!!!!! {self.action}")
-        if self.action == "settings":
-            return "МЕНЮ НАСТРОЕК"
-        elif self.action == "register":
-            return ("Введите нового партнера.\nИмя или название фирмы\n"
-                    '(Для отмены нажмите "ГЛАВНОЕ МЕНЮ")')
-        elif self.action == "partners":
-            return "Партнёры:"
+    async def get_register_text(self):
+        return ("Введите нового партнера.\nИмя или название фирмы\n"
+                '(Для отмены нажмите "ГЛАВНОЕ МЕНЮ")')
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
@@ -203,7 +204,7 @@ class CallBackData:
             case "partners":
                 partners = await db.get_partners()
                 return [
-                    [(name.name, make_cd(self, action=name.name))] for name in partners
+                    [(name.name, make_cd(self, partner=name.name))] for name in partners
                 ]
 
             case "info":
