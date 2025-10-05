@@ -190,10 +190,19 @@ class DataBaseController(BaseDB):
             await user.delete()
 
     async def get_partners(self):
-        return await self.partner.all()
+        return await self.partner.all().order_by("name")
 
     async def get_partner(self, name):
         return await self.partner.filter(name=name).first()
+
+    async def delete_partner(self, name):
+        if partner := await self.partner.filter(name=name).first():
+            await partner.delete()
+
+    async def edit_partner(self, name, discount):
+        if partner := await self.partner.filter(name=name).first():
+            partner.discount = discount
+            await partner.save()
 
 
 db: DataBaseController = DataBaseController()

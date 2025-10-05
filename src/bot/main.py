@@ -3,8 +3,8 @@ from pathlib import Path
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from app.calc import Calculate
-from models import User
 from db.ctrl import db
+from models import User
 from config import cfg
 from logger import logger
 
@@ -12,12 +12,12 @@ from logger import logger
 def parse_callback_data(callback: str):
     try:
         action, values = callback.split("#", 1)
-        page_partner = values.split("!")
-        page = int(page_partner[1]) if page_partner[1] else 0
         brand, model, years, level = values.split("*") if values else []
+        page_and_partner = values.split("!")
+        paginate_page = int(page_and_partner[1]) if page_and_partner[1] else 0
         level = level.split("##")[0]
-        partner = page_partner[0].split("##")[1]
-        return action, brand, model, years, level, page, partner
+        partner = page_and_partner[0].split("##")[1]
+        return action, brand, model, years, level, paginate_page, partner
 
     except ValueError:
         return None, []
@@ -68,10 +68,19 @@ class CallBackData:
             return await self.get_parse_text()
         elif self.action == "settings":
             return "МЕНЮ НАСТРОЕК"
-        elif self.action == "partners":
-            return "Партнёры:"
         elif self.action == "register":
-            return await self.get_register_text()
+            return ('Введите нового партнера\n(Имя или название фирмы)\n'
+                    'Для отмены нажмите "ГЛАВНОЕ МЕНЮ"')
+        elif self.action == "partners":
+            return "Список партнёров:"
+        elif self.action == "partner":
+            return await self.get_partner_info_text()
+        elif self.action == "delete":
+            return "ВЫ УВЕРЕНЫ?"
+        elif self.action == "delete_partner":
+            return await self.get_partner_delete_text()
+        elif self.action == "edit_discount":
+            return "Введите новую скидку в процентах:"
         elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -166,13 +175,21 @@ class CallBackData:
 
         return info
 
+    async def get_partner_info_text(self):
+        partner = await db.get_partner(self.partner)
+        return (
+            f"INFO ℹ️\n"
+            f"Партнёр: {partner.name}\n"
+            f"Текущая скидка: {partner.discount if partner.discount else 0}%"
+        )
+
+    async def get_partner_delete_text(self):
+        await db.delete_partner(self.partner)
+        return "Партнёр удалён."
+
     async def get_parse_text(self):
         logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
-
-    async def get_register_text(self):
-        return ("Введите нового партнера.\nИмя или название фирмы\n"
-                '(Для отмены нажмите "ГЛАВНОЕ МЕНЮ")')
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
@@ -198,13 +215,24 @@ class CallBackData:
                 return await self.get_car_buttons()
             case "settings":
                 return [
-                    [("ДОБАВИТЬ НОВОГО ПАРТНЁРА ➕", make_cd(self, action="register"))],
+                    [("РЕГИСТРАЦИЯ ПАРТНЁРА ➕", make_cd(self, action="register"))],
                     [("ПОЛУЧИТЬ СПИСОК ПАРТНЕРОВ 🗂️", make_cd(self, action="partners"))]
                 ]
             case "partners":
                 partners = await db.get_partners()
                 return [
-                    [(name.name, make_cd(self, partner=name.name))] for name in partners
+                    [(name.name, make_cd(self, action="partner", partner=name.name))] for name in partners
+                ]
+            case "partner":
+                return [
+                    [("ИЗМЕНИТЬ СКИДКУ 💰", make_cd(self, action="edit_discount", partner=self.partner))],
+                    [("УДАЛИТЬ ПАРТНЁРА 🗑️", make_cd(self, action="delete", partner=self.partner))]
+                ]
+
+            case "delete":
+                return [
+                    [("ДА", make_cd(self, action="delete_partner", partner=self.partner))],
+                    [("НЕТ", make_cd(self, partner=self.partner))]
                 ]
 
             case "info":
@@ -279,7 +307,7 @@ class CallBackData:
             return []
 
     async def _get_main_menu_buttons(self):
-        return [[("ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
+        return [[("🔙 ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
 
 
     @staticmethod

@@ -21,7 +21,7 @@ class UserLogs(Model):
 class Partner(Model):
     partner_id = fields.UUIDField(max_length=50, primary_key=True)
     name = fields.CharField(max_length=50)
-    discount = fields.IntField(max_length=50, null=True)
+    discount = fields.IntField(max_length=50, default=0)
 
 
 class BrandDBModel(Model):
