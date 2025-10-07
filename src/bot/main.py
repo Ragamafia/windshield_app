@@ -11,39 +11,37 @@ from logger import logger
 
 def parse_callback_data(callback: str):
     try:
-        action, values = callback.split("#", 1)
-        brand, model, years, level = values.split("*") if values else []
-        page_and_partner = values.split("!")
-        paginate_page = int(page_and_partner[1]) if page_and_partner[1] else 0
-        level = level.split("##")[0]
-        partner = page_and_partner[0].split("##")[1]
-        return action, brand, model, years, level, paginate_page, partner
+        handler, data = callback.split(":")
+        action, values = data.split("#", 1)
+        brand, model, years, page_and_level = values.split("*") if values else []
+        page_and_level = page_and_level.split("##")
+        paginate_page = int(page_and_level[0]) if page_and_level[0] else 0
+        level = page_and_level[1]
+        return action, brand, model, years, paginate_page, level
 
     except ValueError:
         return None, []
 
 def make_cd(cd: "CallBackData", **kwargs):
-    return (f"{kwargs.get("action", cd.action) or ""}#"
+    return (f"car:{kwargs.get("action", cd.action) or ""}#"
             f"{kwargs.get("brand", cd.brand) or ""}*"
             f"{kwargs.get("model", cd.model) or ""}*"
             f"{kwargs.get("years", cd.years) or ""}*"
-            f"{kwargs.get("level", cd.level) or ""}##"
-            f"{kwargs.get("partner", cd.partner) or ""}!"
-            f"{kwargs.get("page", cd.page) or ""}")
+            f"{kwargs.get("page", cd.page) or ""}##"
+            f"{kwargs.get("level", cd.level) or ""}")
 
-class CallBackData:
+class BaseCallBackDataController:
     action: str | None
     brand: str | None
     model: str | None
     years: str | None
     level: str | None
     page: int | None
-    partner: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
         parsed = parse_callback_data(callback.data)
         self.user = user
-        self.action, self.brand, self.model, self.years, self.level, self.page, self.partner = parsed
+        self.action, self.brand, self.model, self.years, self.page, self.level   = parsed
         self.year_start = self.years.split("-")[0]
 
     async def saved_level(self):
@@ -58,29 +56,14 @@ class CallBackData:
     async def text(self) -> str | None:
         if self.action == "set" and not self.brand and not self.model:
             return await self.get_quest_text()
-        elif self.action == "stat":
-            return await self.get_stat_text()
         elif self.action == "car":
             return await self.get_car_text()
+        elif self.action == "stat":
+            return await self.get_stat_text()
         elif self.action == "info":
             return await self.get_glass_info_text()
         elif self.action == "parse":
             return await self.get_parse_text()
-        elif self.action == "settings":
-            return "МЕНЮ НАСТРОЕК"
-        elif self.action == "register":
-            return ('Введите нового партнера\n(Имя или название фирмы)\n'
-                    'Для отмены нажмите "ГЛАВНОЕ МЕНЮ"')
-        elif self.action == "partners":
-            return "Список партнёров:"
-        elif self.action == "partner":
-            return await self.get_partner_info_text()
-        elif self.action == "delete":
-            return "ВЫ УВЕРЕНЫ?"
-        elif self.action == "delete_partner":
-            return await self.get_partner_delete_text()
-        elif self.action == "edit_discount":
-            return "Введите новую скидку в процентах:"
         elif car := await db.get_car(self.brand, self.model, self.year_start):
             return (
                 f"Установите уровень сложности\n"
@@ -96,6 +79,24 @@ class CallBackData:
             lines.append(f"Уровень сложности - {self.show_level}")
 
             return "\n".join(lines)
+
+    async def get_car_text(self):
+        if self.action == "car" and not self.brand:
+            return f"Выберите бренд:"
+
+        elif self.action == "car" and not self.model:
+            return f"Выберите модель для {self.brand.capitalize()}:"
+
+        elif self.action == "car" and not self.years:
+            return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
+
+        elif self.action == "car":
+            car = await db.get_car(self.brand, self.model, self.year_start)
+            return (
+                f"{self.brand.upper()} {self.model.upper()}\n"
+                f"{car.gen} поколение, {self.years}\n"
+                f"Выберите действие"
+            )
 
     async def get_quest_text(self):
         if no_difficulty := await db.get_model_info():
@@ -115,24 +116,6 @@ class CallBackData:
         )
         return (f"Обработано автомобилей - {await db.count_processed_level(level=True)}\n"
                 f"Осталось - {await db.count_processed_level(level=False)}")
-
-    async def get_car_text(self):
-        if self.action == "car" and not self.brand:
-            return f"Выберите бренд:"
-
-        elif self.action == "car" and not self.model:
-            return f"Выберите модель для {self.brand.capitalize()}:"
-
-        elif self.action == "car" and not self.years:
-            return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
-
-        elif self.action == "car":
-            car = await db.get_car(self.brand, self.model, self.year_start)
-            return (
-                f"{self.brand.upper()} {self.model.upper()}\n"
-                f"{car.gen} поколение, {self.years}\n"
-                f"Выберите действие"
-            )
 
     async def get_glass_info_text(self):
         car= await db.get_car(self.brand, self.model, self.year_start)
@@ -175,21 +158,10 @@ class CallBackData:
 
         return info
 
-    async def get_partner_info_text(self):
-        partner = await db.get_partner(self.partner)
-        return (
-            f"INFO ℹ️\n"
-            f"Партнёр: {partner.name}\n"
-            f"Текущая скидка: {partner.discount if partner.discount else 0}%"
-        )
-
-    async def get_partner_delete_text(self):
-        await db.delete_partner(self.partner)
-        return "Партнёр удалён."
-
     async def get_parse_text(self):
         logger.info(f"User {self.user.username}. Start parse")
         return "Sorry, not implemented"
+
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
@@ -206,35 +178,12 @@ class CallBackData:
                     self.brand = no_difficulty["brand"]
                     self.model = no_difficulty["model"]
                     self.years = no_difficulty["groups"][0]["years"]
-                    self.year_start = self.years.split("-")[0]
                     return await self.get_car_buttons()
 
             case "car":
                 return await self.get_car_buttons()
             case "edit":
                 return await self.get_car_buttons()
-            case "settings":
-                return [
-                    [("РЕГИСТРАЦИЯ ПАРТНЁРА ➕", make_cd(self, action="register"))],
-                    [("ПОЛУЧИТЬ СПИСОК ПАРТНЕРОВ 🗂️", make_cd(self, action="partners"))]
-                ]
-            case "partners":
-                partners = await db.get_partners()
-                return [
-                    [(name.name, make_cd(self, action="partner", partner=name.name))] for name in partners
-                ]
-            case "partner":
-                return [
-                    [("ИЗМЕНИТЬ СКИДКУ 💰", make_cd(self, action="edit_discount", partner=self.partner))],
-                    [("УДАЛИТЬ ПАРТНЁРА 🗑️", make_cd(self, action="delete", partner=self.partner))]
-                ]
-
-            case "delete":
-                return [
-                    [("ДА", make_cd(self, action="delete_partner", partner=self.partner))],
-                    [("НЕТ", make_cd(self, partner=self.partner))]
-                ]
-
             case "info":
                 if not self.user.admin:
                     return [
@@ -293,7 +242,7 @@ class CallBackData:
             if items := await self.get_items():
                 if len(items) > cfg.MAX_PAGE_SIZE:
                     pages = len(items) // cfg.MAX_PAGE_SIZE
-                    if self.page > 0:
+                    if int(self.page) > 0:
                         result.append(("⏪", make_cd(self, page=self.page - 1)))
 
                     for page in range(1, pages + 1):
@@ -306,7 +255,8 @@ class CallBackData:
         else:
             return []
 
-    async def _get_main_menu_buttons(self):
+    @staticmethod
+    async def _get_main_menu_buttons():
         return [[("🔙 ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
 
 

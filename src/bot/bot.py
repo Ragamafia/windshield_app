@@ -16,7 +16,6 @@ class DetailerBot(Bot):
     def __init__(self):
         props = DefaultBotProperties(parse_mode="HTML")
         super().__init__(cfg.bot_token, default=props)
-
         self.router: Router = Router()
         self.dp: Dispatcher = Dispatcher()
 
