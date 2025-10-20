@@ -35,27 +35,26 @@ class BaseCallBackDataController:
     brand: str | None
     model: str | None
     years: str | None
-    level: str | None
     page: int | None
+    level: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
-        parsed = parse_callback_data(callback.data)
         self.user = user
-        self.action, self.brand, self.model, self.years, self.page, self.level   = parsed
+        self.action, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
         self.year_start = self.years.split("-")[0]
 
-    async def saved_level(self):
-        if self.level:
+    async def post_init(self):
+        if self.brand and self.model and self.years:
             self.car = await db.get_car(self.brand, self.model, self.year_start)
-            self.saved_info = await db.update_level(self.brand, self.model, self.car.gen, self.level)
-            self.show_level = self.level
-            self.level, self.brand, self.model, self.years = None, None, None, None
-            if self.action == "edit":
-                self.action = None
+            if self.level:
+                self.updated = await db.update_level(self.brand, self.model, self.car.gen, self.level)
+                self.temp_level = self.level
+                if self.action == "set":
+                    self.level, self.brand, self.model, self.years = None, None, None, None
 
     async def text(self) -> str | None:
-        if self.action == "set" and not self.brand and not self.model:
-            return await self.get_quest_text()
+        if self.action == "set":
+            return await self.get_set_text()
         elif self.action == "car":
             return await self.get_car_text()
         elif self.action == "stat":
@@ -64,49 +63,52 @@ class BaseCallBackDataController:
             return await self.get_glass_info_text()
         elif self.action == "parse":
             return await self.get_parse_text()
-        elif car := await db.get_car(self.brand, self.model, self.year_start):
+        elif self.action == "edit":
+            return await self.edited_text()
+        elif self.action == "contact":
+            return (
+                f"Чтобы связаться, перейдите по ссылке: {cfg.admin_url}"
+            )
+
+    async def get_set_text(self):
+        if not self.brand and not self.model:
+            if no_difficulty := await db.get_model_info():
+                self.brand = no_difficulty["brand"]
+                self.model = no_difficulty["model"]
+                self.years = no_difficulty["groups"][0]["years"]
+                self.year_start = self.years.split("-")[0]
+                return await self.text()
+            else:
+                return "All done. Drink some beer, dude)"
+        else:
+            return await self.edited_text()
+
+    async def edited_text(self):
+        if not self.level:
             return (
                 f"Установите уровень сложности\n"
                 f"{self.brand.upper()} {self.model.upper()},\n"
-                f"{car.gen} поколение, {self.years}"
+                f"Года выпуска: {self.years}"
             )
         else:
-            lines = ["Сохранено ✅"]
-            for key, values in self.saved_info.items():
-                lines.append(f'{key.upper()}, {self.car.gen} поколение.')
-                for v in values:
-                    lines.append(v)
-            lines.append(f"Уровень сложности - {self.show_level}")
-
-            return "\n".join(lines)
+            return ("Сохранено ✅\n"
+                    f"{self.updated.model.upper()}, {self.updated.gen} поколение.\n"
+                    f"{self.updated.year_start}-{self.updated.year_end}\n"
+                    f"Уровень сложности - {self.temp_level}")
 
     async def get_car_text(self):
         if self.action == "car" and not self.brand:
             return f"Выберите бренд:"
-
         elif self.action == "car" and not self.model:
             return f"Выберите модель для {self.brand.capitalize()}:"
-
         elif self.action == "car" and not self.years:
             return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
-
-        elif self.action == "car":
-            car = await db.get_car(self.brand, self.model, self.year_start)
+        else:
             return (
                 f"{self.brand.upper()} {self.model.upper()}\n"
-                f"{car.gen} поколение, {self.years}\n"
-                f"Выберите действие"
+                f"{self.car.gen} поколение, {self.years}\n"
+                f"Выберите действие:"
             )
-
-    async def get_quest_text(self):
-        if no_difficulty := await db.get_model_info():
-            self.brand = no_difficulty["brand"]
-            self.model = no_difficulty["model"]
-            self.years = no_difficulty["groups"][0]["years"]
-            self.year_start = self.years.split("-")[0]
-            return await self.text()
-        else:
-            return "All done. Drink some beer, dude)"
 
     async def get_stat_text(self):
         logger.info(
@@ -118,10 +120,9 @@ class BaseCallBackDataController:
                 f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_glass_info_text(self):
-        car= await db.get_car(self.brand, self.model, self.year_start)
         logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
-        price_usa, price_korea = await Calculate(car.width, car.difficulty).get_prices()
-        film_usa, film_korea = await Calculate(car.width, car.difficulty).get_only_film_prices()
+        price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
+        film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
         no_difficulty = (f"{cfg.default_setup}р. (default❗)")
         no_height = (f"{cfg.default_height} (default❗)")
         no_width = (f"{cfg.default_width} (default❗)")
@@ -129,7 +130,7 @@ class BaseCallBackDataController:
         info = (
             f"<code>"
             f"{self.brand.upper()} {self.model.upper()},\n"
-            f"{car.gen} поколение, {self.years}\n\n"
+            f"{self.car.gen} поколение, {self.years}\n\n"
             f"Цена бронирования стекла\n"
             f"Плёнка США: {price_usa}р.\n"
             f"Пленка Корея: - {price_korea}р.\n\n"
@@ -141,13 +142,13 @@ class BaseCallBackDataController:
         for_admin = (
                 f"<code>"
                 f"Размеры стекла\n"
-                f"Высота: {car.height if car.height else no_height}\n"
-                f"Ширина: {car.width if car.width else no_width}\n\n"
+                f"Высота: {self.car.height if self.car.height else no_height}\n"
+                f"Ширина: {self.car.width if self.car.width else no_width}\n\n"
                 f"Стоимость плёнки\n"
                 f"USA: {film_usa}\n"
                 f"KOREA: {film_korea}\n\n"
-                f"Уровень сложности: {car.difficulty}\n"
-                f"Стоимость работы - {cfg.setup.get(car.difficulty) if car.difficulty else no_difficulty}\n\n"
+                f"Уровень сложности: {self.car.difficulty}\n"
+                f"Стоимость работы - {cfg.setup.get(self.car.difficulty) if self.car.difficulty else no_difficulty}\n\n"
                 f"</code>"
         )
 
@@ -194,13 +195,6 @@ class BaseCallBackDataController:
             case _:
                 return []
 
-    async def get_page_items(self, items):
-        if len(items) > cfg.MAX_PAGE_SIZE:
-            page = self.page if self.page else 0
-            return items[page * cfg.MAX_PAGE_SIZE: (page + 1) * cfg.MAX_PAGE_SIZE]
-        else:
-            return items
-
     async def get_items(self):
         if not self.brand:
             brands = await db.get_brands()
@@ -215,15 +209,25 @@ class BaseCallBackDataController:
             items = [f"{g.year_start}-{g.year_end}" for g in car_gens]
             return [[(g, make_cd(self, years=g))] for g in items]
 
+    async def get_page_items(self, items):
+        if len(items) > cfg.MAX_PAGE_SIZE:
+            page = self.page if self.page else 0
+            return items[page * cfg.MAX_PAGE_SIZE: (page + 1) * cfg.MAX_PAGE_SIZE]
+        else:
+            return items
+
     async def get_car_buttons(self):
         if items := await self.get_items():
             return await self.get_page_items(items)
 
         elif self.action == "edit" or self.action == "set":
-            return [
-                [(str(level), make_cd(self, level=level)) for level in range(1, 6)],
-                [(str(level), make_cd(self, level=level)) for level in range(6, 11)]
-            ]
+            if not self.level:
+                return [
+                    [(str(level), make_cd(self, level=level)) for level in range(1, 6)],
+                    [(str(level), make_cd(self, level=level)) for level in range(6, 11)]
+                ]
+            else:
+                return []
         else:
             if self.user.admin:
                 return [
@@ -271,5 +275,4 @@ class BaseCallBackDataController:
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):
-            car = await db.get_car(self.brand, self.model, self.year_start)
-            return Path(cfg.path_to_images / self.brand / self.model / car.glass_id / "img.jpg")
+            return Path(cfg.path_to_images / self.brand / self.model / self.car.glass_id / "img.jpg")

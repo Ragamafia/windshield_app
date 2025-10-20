@@ -1,6 +1,7 @@
 import asyncio
 from typing import Type
 
+from pydantic.v1.class_validators import all_kwargs
 from tortoise.models import Model
 
 from db.base import BaseDB
@@ -106,11 +107,6 @@ class DataBaseController(BaseDB):
                 await car.save()
                 logger.info(f'Update size for ID {glass_id}')
 
-    async def put_partner(self, name):
-        if not await self.partner.filter(name=name).exists():
-            await self.partner.create(name=name)
-            logger.info(f'Create new partner: {name}')
-
     async def get_model_info(self):
         async with self.gen_lock:
             if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start_search).first():
@@ -144,22 +140,12 @@ class DataBaseController(BaseDB):
 
     async def update_level(self, brand, model, gen, level):
         if cars := await self.gen.filter(brand=brand, model=model, gen=gen).all():
-            info = {}
             for car in cars:
                 car.difficulty = level
                 await car.save()
                 await self.gen.filter(id=car.id).update(level=True)
-
-                if car.model not in info:
-                    info[car.model] = [f"{car.year_start}-{car.year_end}"]
-                else:
-                    info[car.model].append(f"{car.year_start}-{car.year_end}")
-
                 logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
-
-            return info
-
-
+            return cars[0]
     async def count_brands(self):
         return await self.brand.all().count()
 
@@ -198,6 +184,11 @@ class DataBaseController(BaseDB):
     async def delete_partner(self, name):
         if partner := await self.partner.filter(name=name).first():
             await partner.delete()
+
+    async def put_partner(self, name, discount):
+        if not await self.partner.filter(name=name).exists():
+            await self.partner.create(name=name, discount=discount)
+            logger.info(f'Create new partner: {name}')
 
     async def edit_partner(self, name, discount):
         if partner := await self.partner.filter(name=name).first():

@@ -29,6 +29,5 @@ data/*
 .job
 iqt.egg-info
 src/webdriver
-base.json
 database.db
 
