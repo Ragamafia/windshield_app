@@ -2,6 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
+from bot.main import BaseCallBackDataController
 from bot.partners.main import PartnerCallBackController
 from bot.partners.states import *
 from db.ctrl import db
@@ -9,17 +10,9 @@ from models import User
 
 
 def register_partners_handlers(bot):
-    @bot.router.callback_query(F.data.startswith("set_partners"))
-    @bot.authorize
-    async def partners_callback_handler(callback: CallbackQuery, user: User):
-        data = PartnerCallBackController(callback, user)
-        text = await data.text()
-        keyboard = await data.keyboard()
-        await callback.message.answer(text, reply_markup=keyboard)
-
-    @bot.router.callback_query(F.data.startswith("add"))
+    @bot.router.callback_query(F.data.startswith("partners:add"))
     async def add_handler(callback: CallbackQuery, state: FSMContext):
-        await callback.message.answer("Введите нового партнёра:\n(Имя или название фирмы)")
+        await callback.message.answer("Введите новое имя или название фирмы:")
         await state.set_state(EditPartner.name)
 
     @bot.router.message(EditPartner.name)
@@ -39,20 +32,24 @@ def register_partners_handlers(bot):
                                  f"Партнёр: {name}\n"
                                  f"Дисконт: {discount}%")
             await state.clear()
-        except Exception as e:
+        except Exception:
             await message.answer(f"Пожалуйста, введите действительное число в процентах")
 
-    @bot.router.callback_query(F.data.startswith("partners"))
-    @bot.authorize
-    async def view_partners(callback: CallbackQuery, user: User):
-        data = PartnerCallBackController(callback, user)
-        text = await data.text()
-        keyboard = await data.keyboard()
-        await callback.message.answer(text, reply_markup=keyboard)
+        keyboard = BaseCallBackDataController._get_keyboard([[("К ПАРТНЕРАМ", "partners:partners#")]])
+        await message.answer("К ПАРТНЕРАМ", reply_markup=keyboard)
 
-    @bot.router.callback_query(F.data.startswith("partner"))
+
+
+    @bot.router.callback_query(F.data.startswith("partners:edit_discount"))
+    async def update_discount_handler(callback: CallbackQuery, state: FSMContext):
+        await callback.message.answer(f"Введите новую скидку (целое число в процентах).")
+        await state.set_state(EditPartner.discount)
+        name = callback.data.split("#")[1]
+        await state.update_data(name=name)
+
+    @bot.router.callback_query(F.data.startswith("partners:"))
     @bot.authorize
-    async def view_partner(callback: CallbackQuery, user: User):
+    async def partners_callback_handler(callback: CallbackQuery, user: User):
         data = PartnerCallBackController(callback, user)
         text = await data.text()
         keyboard = await data.keyboard()

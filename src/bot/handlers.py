@@ -20,7 +20,7 @@ def register_main_handlers(bot):
                     ("СТАТИСТИКА 📝", "car:stat#***##"),
                     ("ПАРСЕР 🔍", "car:parse#***##"),
                 ], [
-                    ("НАСТРОЙКИ ПАРТНЁРОВ 🔧", "set_partners#*")
+                    ("НАСТРОЙКИ ПАРТНЁРОВ 🔧", "partners:set_partners#")
                 ]
             ]
         else:

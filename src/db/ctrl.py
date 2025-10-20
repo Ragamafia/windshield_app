@@ -1,7 +1,6 @@
 import asyncio
 from typing import Type
 
-from pydantic.v1.class_validators import all_kwargs
 from tortoise.models import Model
 
 from db.base import BaseDB
@@ -189,11 +188,10 @@ class DataBaseController(BaseDB):
         if not await self.partner.filter(name=name).exists():
             await self.partner.create(name=name, discount=discount)
             logger.info(f'Create new partner: {name}')
-
-    async def edit_partner(self, name, discount):
-        if partner := await self.partner.filter(name=name).first():
+        elif partner := await self.partner.filter(name=name).first():
             partner.discount = discount
             await partner.save()
+            logger.info(f'Partner updated: {name}. New discount: {discount}%')
 
 
 db: DataBaseController = DataBaseController()
