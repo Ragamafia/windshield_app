@@ -2,7 +2,6 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from bot.main import BaseCallBackDataController
 from bot.partners.main import PartnerCallBackController
 from bot.partners.states import *
 from db.ctrl import db
@@ -34,11 +33,7 @@ def register_partners_handlers(bot):
             await state.clear()
         except Exception:
             await message.answer(f"Пожалуйста, введите действительное число в процентах")
-
-        keyboard = BaseCallBackDataController._get_keyboard([[("К ПАРТНЕРАМ", "partners:partners#")]])
-        await message.answer("К ПАРТНЕРАМ", reply_markup=keyboard)
-
-
+        await post_update(message)
 
     @bot.router.callback_query(F.data.startswith("partners:edit_discount"))
     async def update_discount_handler(callback: CallbackQuery, state: FSMContext):
@@ -54,3 +49,15 @@ def register_partners_handlers(bot):
         text = await data.text()
         keyboard = await data.keyboard()
         await callback.message.answer(text, reply_markup=keyboard)
+
+
+    async def post_update(msg):
+        fake_callback = CallbackQuery(id=str(msg.message_id),
+                                      chat_instance=str(msg.chat.id),
+                                      from_user=msg.from_user,
+                                      data="partners:partners#"
+                                      )
+        data = PartnerCallBackController(fake_callback, msg.from_user)
+        text = await data.text()
+        keyboard = await data.keyboard()
+        await msg.answer(text, reply_markup=keyboard)

@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, CallbackQuery, Message
 
 from bot.main import BaseCallBackDataController
 from db.ctrl import db
@@ -9,8 +9,6 @@ def parse_callback_data(callback: str):
     try:
         handler, data = callback.split(":")
         action, values = data.split("#")
-
-
         return action, values
 
     except ValueError:
@@ -26,7 +24,6 @@ class PartnerCallBackController:
     partner: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
-        print(callback.data)
         parsed = parse_callback_data(callback.data)
         self.action, self.partner = parsed
 
@@ -52,7 +49,6 @@ class PartnerCallBackController:
     async def get_partner_delete_text(self):
         await db.delete_partner(self.partner)
         return "Партнёр удалён."
-
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
