@@ -120,7 +120,6 @@ class BaseCallBackDataController:
                 f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_glass_info_text(self):
-        logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
         price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
         film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
         no_difficulty = (f"{cfg.default_setup}р. (default❗)")
@@ -156,7 +155,7 @@ class BaseCallBackDataController:
             info += for_admin
         else:
             info += for_user
-
+        logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
         return info
 
     async def get_parse_text(self):
@@ -262,7 +261,6 @@ class BaseCallBackDataController:
     @staticmethod
     async def _get_main_menu_buttons():
         return [[("🔙 ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
-
 
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
