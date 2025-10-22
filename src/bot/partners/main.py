@@ -27,7 +27,6 @@ class PartnerCallBackController:
     user_id: int | None
 
     def __init__(self, callback: CallbackQuery, user: User):
-        print(callback.data)
         parsed = parse_callback_data(callback.data)
         self.action, self.company, self.user_id = parsed
         self.user = user
@@ -39,7 +38,7 @@ class PartnerCallBackController:
             return await self.get_partners_text()
         elif self.action == "partner":
             return await self.get_partner_info_text()
-        elif self.action == "all_managers":
+        elif self.action == "managers":
             return "МЕНЕДЖЕРЫ:"
         elif self.action == "manager":
             return await self.get_manager_info_text()
@@ -48,7 +47,7 @@ class PartnerCallBackController:
         elif self.action == "company_add_manager":
             return "В какую компанию добавить сотрудника?"
         elif self.action == "update":
-            return await self.emloyee_added()
+            return await self.update()
         elif self.action == "remove_company":
             return await self.remove_company()
         elif self.action == "remove":
@@ -94,7 +93,7 @@ class PartnerCallBackController:
                 f"Выберите действие:"
             )
 
-    async def emloyee_added(self):
+    async def update(self):
         if partner := await db.get_partner(self.company):
             await db.update_user(self.user_id, partner.partner_id)
             return (
@@ -126,7 +125,7 @@ class PartnerCallBackController:
                 return [
                     [("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", make_cd(self, action="add"))],
                     [("СПИСОК КОМПАНИЙ 🗂️", make_cd(self, action="partners"))],
-                    [("ВСЕ МЕНЕДЖЕРЫ 👔", make_cd(self, action="all_managers"))]
+                    [("ВСЕ МЕНЕДЖЕРЫ 👔", make_cd(self, action="managers"))]
                 ]
 
             case "partners":
@@ -137,7 +136,7 @@ class PartnerCallBackController:
                 else:
                     return [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
 
-            case "all_managers":
+            case "managers":
                 managers = await db.get_users()
                 return [
                     [(manager.username, make_cd(self, action="manager", user_id=manager.user_id))] for manager in
@@ -167,7 +166,6 @@ class PartnerCallBackController:
                         [("🔙 НАЗАД 🔙", make_cd(self, action="partner", company=self.company))]
                     ]
 
-
             case "manager":
                 manager = await db.get_user(self.user_id)
                 if manager.company_id:
@@ -178,7 +176,7 @@ class PartnerCallBackController:
                 else:
                     return [
                         [("ДОБАВИТЬ В КОМПАНИЮ ", make_cd(self, action="company_add_manager"))],
-                        [("🔙 НАЗАД 🔙", make_cd(self, action="all_managers"))]
+                        [("🔙 НАЗАД 🔙", make_cd(self, action="managers"))]
                     ]
 
             case "company_add_manager":
@@ -187,7 +185,7 @@ class PartnerCallBackController:
                         [(partner.name, make_cd(self, action="update", company=partner.name, user_id=self.user_id))] for partner in partners
                     ]
                 else:
-                    return [("🔙 НАЗАД 🔙", make_cd(self, action="all_managers", company=self.company))]
+                    return [("🔙 НАЗАД 🔙", make_cd(self, action="managers", company=self.company))]
 
             case ("update"):
                 return [
