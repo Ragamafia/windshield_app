@@ -65,10 +65,6 @@ class BaseCallBackDataController:
             return await self.get_parse_text()
         elif self.action == "edit":
             return await self.edited_text()
-        elif self.action == "contact":
-            return (
-                f"Чтобы связаться, перейдите по ссылке: {cfg.admin_url}"
-            )
 
     async def get_set_text(self):
         if not self.brand and not self.model:
@@ -260,7 +256,7 @@ class BaseCallBackDataController:
 
     @staticmethod
     async def _get_main_menu_buttons():
-        return [[("🔙 ГЛАВНОЕ МЕНЮ 🔙", "/start")]]
+        return [[("ГЛАВНОЕ МЕНЮ", "/start")]]
 
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
@@ -273,4 +269,5 @@ class BaseCallBackDataController:
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):
-            return Path(cfg.path_to_images / self.brand / self.model / self.car.glass_id / "img.jpg")
+            car = await db.get_car(self.brand, self.model, self.year_start)
+            return Path(cfg.path_to_images / self.brand / self.model / car.glass_id / "img.jpg")

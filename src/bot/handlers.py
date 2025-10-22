@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from bot.main import BaseCallBackDataController
 from models import User
+from config import cfg
 
 
 def register_main_handlers(bot):
@@ -18,9 +19,9 @@ def register_main_handlers(bot):
                     ("ОПРОС БАЗЫ 💿", "car:set#***##"),
                 ], [
                     ("СТАТИСТИКА 📝", "car:stat#***##"),
-                    ("ПАРСЕР 🔍", "car:parse#***##"),
+                    ("ЗАПУСК ПАРСЕРА 🔍", "car:parse#***##"),
                 ], [
-                    ("НАСТРОЙКИ ПАРТНЁРОВ 🔧", "partners:set_partners#")
+                    ("НАСТРОЙКИ ПАРТНЁРОВ 🔧", "partners:set_partners#*")
                 ]
             ]
         else:
@@ -28,12 +29,20 @@ def register_main_handlers(bot):
                 [
                     ("ВЫБОР АВТО 🚘", "car:car#***##"),
                 ], [
-                    ("СВЯЗАТЬСЯ С НАМИ 📱", "car:contact#***##"),
+                    ("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#***##"),
                 ]
             ]
         keyboard = BaseCallBackDataController._get_keyboard(keyboard)
         msg = message if isinstance(message, Message) else message.message
         await msg.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
+
+
+    @bot.router.callback_query(F.data.startswith("car:contact"))
+    @bot.authorize
+    async def contact_handler(callback: CallbackQuery, user: User):
+        await bot.send_message(user.user_id,
+                               f"Чтобы связаться перейдите по ссылке: {cfg.admin_url}")
+        await callback.answer()
 
 
     @bot.router.callback_query(F.data.startswith("car:"))

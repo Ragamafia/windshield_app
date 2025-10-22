@@ -40,7 +40,7 @@ def register_partners_handlers(bot):
         await callback.message.answer(f"Введите новую скидку (целое число в процентах).")
         await state.set_state(EditPartner.discount)
         name = callback.data.split("#")[1]
-        await state.update_data(name=name)
+        await state.update_data(name=name.strip("*"))
 
     @bot.router.callback_query(F.data.startswith("partners:"))
     @bot.authorize
@@ -55,7 +55,7 @@ def register_partners_handlers(bot):
         fake_callback = CallbackQuery(id=str(msg.message_id),
                                       chat_instance=str(msg.chat.id),
                                       from_user=msg.from_user,
-                                      data="partners:partners#"
+                                      data="partners:set_partners#*"
                                       )
         data = PartnerCallBackController(fake_callback, msg.from_user)
         text = await data.text()

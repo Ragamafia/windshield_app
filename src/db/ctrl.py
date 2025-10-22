@@ -4,7 +4,7 @@ from typing import Type
 from tortoise.models import Model
 
 from db.base import BaseDB
-from db.table import BrandDBModel, ModelDBModel, GenDBModel, User, Partner
+from db.table import BrandDBModel, ModelDBModel, GenDBModel, Users, Partner
 from logger import logger
 from config import cfg
 
@@ -13,7 +13,7 @@ class DataBaseController(BaseDB):
     brand: Type[Model] = BrandDBModel
     model: Type[Model] = ModelDBModel
     gen: Type[Model] = GenDBModel
-    user: Type[Model] = User
+    users: Type[Model] = Users
     partner: Type[Model] = Partner
 
     brand_lock: asyncio.Lock()
@@ -68,9 +68,6 @@ class DataBaseController(BaseDB):
 
     async def get_car(self, brand, model, year_start):
         return await self.gen.filter(brand=brand, model=model, year_start=year_start).first()
-
-    async def get_glass(self, glass_id):
-        return await self.gen.filter(glass_id=glass_id).first()
 
 
     async def put_brands(self, brand):
@@ -145,8 +142,6 @@ class DataBaseController(BaseDB):
                 await self.gen.filter(id=car.id).update(level=True)
                 logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
             return cars[0]
-    async def count_brands(self):
-        return await self.brand.all().count()
 
     async def count_models(self):
         return await self.model.all().count()
@@ -157,28 +152,46 @@ class DataBaseController(BaseDB):
     async def count_processed_level(self, level: bool):
         return await self.gen.filter(level=level).all().count()
 
+
     async def create_user(self, user_id, username, first_name, admin: bool):
-        await self.user.create(
+        await self.users.create(
             user_id=user_id,
             username=username,
             first_name=first_name,
             admin=admin
         )
-        return await self.user.filter(user_id=user_id).first().values()
+        return await self.users.filter(user_id=user_id).first().values()
+
+    async def get_users(self):
+        return await self.users.all().order_by("username")
 
     async def get_user(self, user_id):
-        if user := await self.user.filter(user_id=user_id).first():
+        if user := await self.users.filter(user_id=user_id).first():
             return user
 
+    async def get_users_by_id(self, id):
+        if users := await self.users.filter(company_id=id).all():
+            return users
+
+    async def update_user(self, user_id, company_id):
+        if user := await self.users.filter(user_id=user_id).first():
+            user.company_id = company_id
+            await user.save()
+            logger.info(f'User updated: {user.username}.')
+
     async def delete_user(self, user_id):
-        if user := await self.user.filter(user_id=user_id).first():
+        if user := await self.users.filter(user_id=user_id).first():
             await user.delete()
+
 
     async def get_partners(self):
         return await self.partner.all().order_by("name")
 
     async def get_partner(self, name):
         return await self.partner.filter(name=name).first()
+
+    async def get_partner_by_id(self, id):
+        return await self.partner.filter(partner_id=id).first()
 
     async def delete_partner(self, name):
         if partner := await self.partner.filter(name=name).first():

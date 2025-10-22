@@ -2,20 +2,13 @@ from tortoise.models import Model
 from tortoise import fields
 
 
-class User(Model):
+class Users(Model):
     user_id = fields.IntField(max_length=50, null=True)
-    #company_id = fields.CharField(max_length=50, null=True)
+    company_id = fields.CharField(max_length=50, null=True)
     admin = fields.BooleanField(default=False)
     username = fields.CharField(max_length=50, null=True)
     first_name = fields.CharField(max_length=50, null=True)
     banned = fields.BooleanField(default=False)
-
-
-class UserLogs(Model):
-    user_id = fields.IntField(max_length=50, null=True)
-    record = fields.CharField(max_length=100, null=True)
-    type =fields.CharField(max_length=50, null=True)
-    ts = fields.DatetimeField(max_length=50, null=True)
 
 
 class Partner(Model):
