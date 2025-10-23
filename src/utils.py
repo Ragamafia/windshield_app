@@ -5,7 +5,9 @@ from PIL import Image
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
+from models import User
 from db.base import BaseDB
+from db.ctrl import db
 from logger import logger
 from config import cfg
 
@@ -61,3 +63,16 @@ class CheckerImage(BaseDB):
         with open(image_path, 'wb') as file:
             file.write(image)
             logger.success(f"Save new image: {brand} {model}")
+
+
+class CheckerDiscount:
+    def __init__(self, user: User):
+        self.user = user
+
+    async def check(self):
+        user = await db.get_user(self.user.user_id)
+        if company := await db.get_partner_by_id(user.company_id):
+            return company.discount
+        else:
+            logger.warning(f"User {self.user.username} not tied to the company")
+            return False

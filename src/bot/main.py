@@ -3,6 +3,7 @@ from pathlib import Path
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from app.calc import Calculate
+from utils import CheckerDiscount
 from db.ctrl import db
 from models import User
 from config import cfg
@@ -116,43 +117,50 @@ class BaseCallBackDataController:
                 f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_glass_info_text(self):
-        price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
-        film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
-        no_difficulty = (f"{cfg.default_setup}р. (default❗)")
-        no_height = (f"{cfg.default_height} (default❗)")
-        no_width = (f"{cfg.default_width} (default❗)")
+        if discount := await CheckerDiscount(self.user).check():
+            price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
+            film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
+            no_difficulty = (f"{cfg.default_setup}р. (default❗)")
+            no_height = (f"{cfg.default_height} (default❗)")
+            no_width = (f"{cfg.default_width} (default❗)")
 
-        info = (
-            f"<code>"
-            f"{self.brand.upper()} {self.model.upper()},\n"
-            f"{self.car.gen} поколение, {self.years}\n\n"
-            f"Цена бронирования стекла\n"
-            f"Плёнка США: {price_usa}р.\n"
-            f"Пленка Корея: - {price_korea}р.\n\n"
-            f"</code>"
-        )
-        for_user = (
-            f"Для получения точной информации и записи на оклейку обратитесь пожалуйста к мастеру ⬇"
-        )
-        for_admin = (
+            info = (
                 f"<code>"
-                f"Размеры стекла\n"
-                f"Высота: {self.car.height if self.car.height else no_height}\n"
-                f"Ширина: {self.car.width if self.car.width else no_width}\n\n"
-                f"Стоимость плёнки\n"
-                f"USA: {film_usa}\n"
-                f"KOREA: {film_korea}\n\n"
-                f"Уровень сложности: {self.car.difficulty}\n"
-                f"Стоимость работы - {cfg.setup.get(self.car.difficulty) if self.car.difficulty else no_difficulty}\n\n"
+                f"{self.brand.upper()} {self.model.upper()},\n"
+                f"{self.car.gen} поколение, {self.years}\n\n"
+                f"Цена бронирования стекла\n"
+                f"Плёнка США: {price_usa - (price_usa * discount / 100)}р.\n"
+                f"Пленка Корея: - {price_korea - (price_korea * discount / 100)}р.\n\n"
                 f"</code>"
-        )
+            )
+            for_user = (
+                f"Для получения точной информации и записи на оклейку обратитесь пожалуйста к мастеру ⬇"
+            )
+            for_admin = (
+                    f"<code>"
+                    f"Размеры стекла\n"
+                    f"Высота: {self.car.height if self.car.height else no_height}\n"
+                    f"Ширина: {self.car.width if self.car.width else no_width}\n\n"
+                    f"Стоимость плёнки\n"
+                    f"USA: {film_usa}\n"
+                    f"KOREA: {film_korea}\n\n"
+                    f"Уровень сложности: {self.car.difficulty}\n"
+                    f"Стоимость работы - {cfg.setup.get(self.car.difficulty) if self.car.difficulty else no_difficulty}\n\n"
+                    f"</code>"
+            )
 
-        if self.user.admin:
-            info += for_admin
+            if self.user.admin:
+                info += for_admin
+            else:
+                info += for_user
+            logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
+            return info
+
         else:
-            info += for_user
-        logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
-        return info
+            return (
+                f"Пожалуйста, дождитесь авторизации ⏱\n"
+                f"Если ваш вопрос срочный, свяжитесь с администратором по ссылке {cfg.admin_url}"
+            )
 
     async def get_parse_text(self):
         logger.info(f"User {self.user.username}. Start parse")
@@ -196,8 +204,12 @@ class BaseCallBackDataController:
             return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
 
         elif not self.model:
-            models = await db.get_models(self.brand)
-            return [[(m.model.upper(), make_cd(self, model=m.model))] for m in models]
+            available_models = await db.get_avialable_models(self.brand)
+            result = [
+                i for i in await db.get_models(self.brand)
+                if i.model in available_models
+            ]
+            return [[(m.model.upper(), make_cd(self, model=m.model))] for m in result]
 
         elif not self.years:
             car_gens = await db.get_gens(self.brand, self.model)
