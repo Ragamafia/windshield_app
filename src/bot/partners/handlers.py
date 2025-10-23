@@ -39,8 +39,8 @@ def register_partners_handlers(bot):
     async def update_discount_handler(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(f"Введите новую скидку (целое число в процентах).")
         await state.set_state(EditPartner.discount)
-        name = callback.data.split("#")[1]
-        await state.update_data(name=name.strip("*"))
+        name = callback.data.split("#")[1].split("*")[0].strip("")
+        await state.update_data(name=name)
 
     @bot.router.callback_query(F.data.startswith("partners:"))
     @bot.authorize
