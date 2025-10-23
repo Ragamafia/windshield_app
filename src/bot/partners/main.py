@@ -15,11 +15,6 @@ def parse_callback_data(callback: str):
     except ValueError:
         return None, []
 
-def make_cd(cd: "CallBackData", **kwargs):
-    return (f"partners:{kwargs.get("action", cd.action) or ""}#"
-            f"{kwargs.get("company", cd.company) or ""}*"
-            f"{kwargs.get("user_id", cd.user_id) or ""}")
-
 
 class PartnerCallBackController:
     action: str | None
@@ -27,9 +22,17 @@ class PartnerCallBackController:
     user_id: int | None
 
     def __init__(self, callback: CallbackQuery, user: User):
+        print(callback.data)
         parsed = parse_callback_data(callback.data)
         self.action, self.company, self.user_id = parsed
         self.user = user
+        if self.action == "edit_discount":
+            self.user_id = None
+
+    def make_cd(self, **kwargs):
+        return (f"partners:{kwargs.get("action", self.action) or ""}#"
+                f"{kwargs.get("company", self.company) or ""}*"
+                f"{kwargs.get("user_id", self.user_id) or ""}")
 
     async def text(self) -> str | None:
         if self.action == "set_partners":
@@ -54,6 +57,7 @@ class PartnerCallBackController:
             return "ВЫ УВЕРЕНЫ?"
         elif self.action == "remove_partner":
             return await self.partner_delete()
+
 
     async def get_partners_text(self):
         if partners := await db.get_partners():
@@ -112,6 +116,7 @@ class PartnerCallBackController:
         await db.delete_partner(self.company)
         return "Менеджеры отвязаны. Партнёр удалён."
 
+
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
             * await self._get_action_buttons(),
@@ -120,88 +125,95 @@ class PartnerCallBackController:
         return BaseCallBackDataController._get_keyboard(keyboard)
 
     async def _get_action_buttons(self):
+        buttons = []
         match self.action:
             case "set_partners":
                 return [
-                    [("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", make_cd(self, action="add"))],
-                    [("СПИСОК КОМПАНИЙ 🗂️", make_cd(self, action="partners"))],
-                    [("ВСЕ МЕНЕДЖЕРЫ 👔", make_cd(self, action="managers"))]
+                    [("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", self.make_cd(action="add"))],
+                    [("СПИСОК КОМПАНИЙ 🗂️", self.make_cd(action="partners"))],
+                    [("ВСЕ МЕНЕДЖЕРЫ 👔", self.make_cd(action="managers"))]
                 ]
 
             case "partners":
                 if partners := await db.get_partners():
-                    return [
-                        [(partner.name, make_cd(self, action="partner", company=partner.name))] for partner in partners
-                    ]
-                else:
-                    return [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
+                    for partner in partners:
+                        buttons.append(
+                            [(partner.name, self.make_cd(action="partner", company=partner.name))]
+                        )
+                buttons.append(await self._back("set_partners"))
+                return buttons
 
             case "managers":
                 managers = await db.get_users()
-                return [
-                    [(manager.username, make_cd(self, action="manager", user_id=manager.user_id))] for manager in
-                    managers
-                ]
+                for manager in managers:
+                    buttons.append(
+                        [(manager.username, self.make_cd(action="manager", user_id=manager.user_id))]
+                    )
+                buttons.append(await self._back("set_partners"))
+                return buttons
 
             case "partner":
-                return [
-                    [("ИЗМЕНИТЬ СКИДКУ 💰", make_cd(self, action="edit_discount", company=self.company))],
-                    [("МЕНЕДЖЕРЫ 👔", make_cd(self, action="company_managers", company=self.company))],
-                    [("УДАЛИТЬ КОМПАНИЮ 🗑️", make_cd(self, action="remove"))],
-                    [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
-                ]
+                buttons.append([("ИЗМЕНИТЬ СКИДКУ 💰", self.make_cd(action="edit_discount", company=self.company))])
+                buttons.append([("МЕНЕДЖЕРЫ 👔", self.make_cd(action="company_managers", company=self.company))])
+                buttons.append([("УДАЛИТЬ КОМПАНИЮ 🗑️", self.make_cd(action="remove"))])
+                buttons.append(await self._back("partners"))
+                return buttons
 
             case "company_managers":
                 if partner := await db.get_partner(self.company):
                     if managers := await db.get_users_by_id(partner.partner_id):
-                        return [
-                            [(manager.username, make_cd(self, action="manager", user_id=manager.user_id))] for manager in managers
-                        ]
-                    else:
-                        return [
-                            [("🔙 НАЗАД 🔙", make_cd(self, action="partner", company=self.company))]
-                        ]
-                else:
-                    return [
-                        [("🔙 НАЗАД 🔙", make_cd(self, action="partner", company=self.company))]
-                    ]
+                        for manager in managers:
+                            buttons.append(
+                                [(manager.username, self.make_cd(action="manager", user_id=manager.user_id))]
+                            )
+                    buttons.append(await self._back("partner", company=self.company))
+                    return buttons
 
             case "manager":
+                action = "partner" if self.company else "managers"
                 manager = await db.get_user(self.user_id)
                 if manager.company_id:
-                    return [
-                        [("ОТВЯЗАТЬ ОТ КОМПАНИИ ", make_cd(self, action="remove_company", user_id=self.user_id))],
-                        [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
-                    ]
+                    buttons.append(
+                        [("ОТВЯЗАТЬ ОТ КОМПАНИИ ➖", self.make_cd(action="remove_company", user_id=self.user_id))]
+                    )
                 else:
-                    return [
-                        [("ДОБАВИТЬ В КОМПАНИЮ ", make_cd(self, action="company_add_manager"))],
-                        [("🔙 НАЗАД 🔙", make_cd(self, action="managers"))]
-                    ]
+                    buttons.append(
+                        [("ДОБАВИТЬ В КОМПАНИЮ ➕", self.make_cd(action="company_add_manager"))]
+                    )
+                buttons.append(await self._back(action, company=self.company if self.company else None))
+                return buttons
 
             case "company_add_manager":
                 if partners := await db.get_partners():
-                    return [
-                        [(partner.name, make_cd(self, action="update", company=partner.name, user_id=self.user_id))] for partner in partners
-                    ]
-                else:
-                    return [("🔙 НАЗАД 🔙", make_cd(self, action="managers", company=self.company))]
+                    for partner in partners:
+                        buttons.append(
+                            [(partner.name, self.make_cd(action="update", company=partner.name))]
+                        )
+                buttons.append(await self._back("managers", company=self.company))
+                return buttons
 
             case ("update"):
-                return [
-                    [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
-                ]
+                buttons.append(await self._back("set_partners"))
+                return buttons
 
             case "remove":
                 return [
-                    [("ДА ✅", make_cd(self, action="remove_partner", company=self.company))],
-                    [("НЕТ ❌", make_cd(self, action="set_partners"))]
+                    [("ДА ✅", self.make_cd(action="remove_partner", company=self.company))],
+                    [("НЕТ ❌", self.make_cd(action="set_partners"))]
+                ]
+            case "remove_partner":
+                return [
+                    [("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", self.make_cd(action="set_partners"))]
                 ]
 
             case "remove_company":
-                    return [
-                        [("🔙 НАЗАД 🔙", make_cd(self, action="set_partners"))]
-                    ]
+                buttons.append(await self._back("set_partners"))
+                return buttons
 
             case _:
                 return []
+
+    async def _back(self, action: str, company=None):
+        return [
+            ("🔙 НАЗАД 🔙", self.make_cd(action=action, company=company))
+        ]

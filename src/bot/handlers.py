@@ -21,7 +21,7 @@ def register_main_handlers(bot):
                     ("СТАТИСТИКА 📝", "car:stat#***##"),
                     ("ЗАПУСК ПАРСЕРА 🔍", "car:parse#***##"),
                 ], [
-                    ("НАСТРОЙКИ ПАРТНЁРОВ 🔧", "partners:set_partners#*")
+                    ("НАСТРОЙКИ ПАРТНЁРОВ 👥", "partners:set_partners#*")
                 ]
             ]
         else:
