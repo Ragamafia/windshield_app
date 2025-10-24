@@ -3,7 +3,7 @@ from pathlib import Path
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from app.calc import Calculate
-from utils import CheckerDiscount
+from utils import check_discount
 from db.ctrl import db
 from models import User
 from config import cfg
@@ -117,7 +117,8 @@ class BaseCallBackDataController:
                 f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_glass_info_text(self):
-        if discount := await CheckerDiscount(self.user).check():
+        name, discount = await check_discount(self.user)
+        if discount or str(discount) == "0":
             price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
             film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
             no_difficulty = (f"{cfg.default_setup}р. (default❗)")
@@ -128,7 +129,7 @@ class BaseCallBackDataController:
                 f"<code>"
                 f"{self.brand.upper()} {self.model.upper()},\n"
                 f"{self.car.gen} поколение, {self.years}\n\n"
-                f"Цена бронирования стекла\n"
+                f"Cтоимость бронирования стекла для {name}\n"
                 f"Плёнка США: {price_usa - (price_usa * discount / 100)}р.\n"
                 f"Пленка Корея: - {price_korea - (price_korea * discount / 100)}р.\n\n"
                 f"</code>"
@@ -141,7 +142,7 @@ class BaseCallBackDataController:
                     f"Размеры стекла\n"
                     f"Высота: {self.car.height if self.car.height else no_height}\n"
                     f"Ширина: {self.car.width if self.car.width else no_width}\n\n"
-                    f"Стоимость плёнки\n"
+                    f"Стоимость потраченной плёнки\n"
                     f"USA: {film_usa}\n"
                     f"KOREA: {film_korea}\n\n"
                     f"Уровень сложности: {self.car.difficulty}\n"
@@ -159,7 +160,7 @@ class BaseCallBackDataController:
         else:
             return (
                 f"Пожалуйста, дождитесь авторизации ⏱\n"
-                f"Если ваш вопрос срочный, свяжитесь с администратором по ссылке {cfg.admin_url}"
+                f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️"
             )
 
     async def get_parse_text(self):
