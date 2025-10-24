@@ -40,7 +40,6 @@ async def download_image():
 
 async def main():
     await db.setup_db()
-    await db.delete_partner("<fpf 5")
 
     # await run_parser()
     # await download_image()

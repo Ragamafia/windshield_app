@@ -117,7 +117,7 @@ class BaseCallBackDataController:
                 f"Осталось - {await db.count_processed_level(level=False)}")
 
     async def get_glass_info_text(self):
-        name, discount = await check_discount(self.user)
+        discount = await check_discount(self.user)
         if discount or str(discount) == "0":
             price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
             film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
@@ -129,7 +129,7 @@ class BaseCallBackDataController:
                 f"<code>"
                 f"{self.brand.upper()} {self.model.upper()},\n"
                 f"{self.car.gen} поколение, {self.years}\n\n"
-                f"Cтоимость бронирования стекла для {name}\n"
+                f"Cтоимость бронирования стекла\n"
                 f"Плёнка США: {price_usa - (price_usa * discount / 100)}р.\n"
                 f"Пленка Корея: - {price_korea - (price_korea * discount / 100)}р.\n\n"
                 f"</code>"
