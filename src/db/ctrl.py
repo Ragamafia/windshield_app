@@ -166,7 +166,7 @@ class DataBaseController(BaseDB):
         return await self.users.filter(user_id=user_id).first().values()
 
     async def get_users(self):
-        return await self.users.all().order_by("username")
+        return await self.users.all().order_by("first_name")
 
     async def get_user(self, user_id):
         if user := await self.users.filter(user_id=user_id).first():
@@ -180,7 +180,7 @@ class DataBaseController(BaseDB):
         if user := await self.users.filter(user_id=user_id).first():
             user.company_id = company_id
             await user.save()
-            logger.info(f'User updated: {user.username}.')
+            logger.info(f'User updated: {user.first_name}.')
 
     async def delete_user(self, user_id):
         if user := await self.users.filter(user_id=user_id).first():

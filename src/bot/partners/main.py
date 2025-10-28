@@ -80,14 +80,14 @@ class PartnerCallBackController:
         if manager.company_id:
             company = await db.get_partner_by_id(manager.company_id)
             return (
-                f"Менеджер: {manager.username}\n"
+                f"Менеджер: {manager.first_name}\n"
                 f"Компания: {company.name}\n"
                 f"Дисконт: {company.discount}%\n\n"
                 f"Выберите действие:"
             )
         else:
             return (
-                f"Менеджер: {manager.username}\n"
+                f"Менеджер: {manager.first_name}\n"
                 f"Компания не назначена.\n\n"
                 f"Выберите действие:"
             )
@@ -140,9 +140,10 @@ class PartnerCallBackController:
 
             case "managers":
                 managers = await db.get_users()
+
                 for manager in managers:
                     buttons.append(
-                        [(manager.username, self.make_cd(action="manager", user_id=manager.user_id))]
+                        [(manager.first_name, self.make_cd(action="manager", user_id=manager.user_id))]
                     )
                 buttons.append(await self._back("set_partners"))
                 return buttons
@@ -161,7 +162,7 @@ class PartnerCallBackController:
                     if managers := await db.get_users_by_id(partner.partner_id):
                         for manager in managers:
                             buttons.append(
-                                [(manager.username, self.make_cd(action="manager", user_id=manager.user_id))]
+                                [(manager.first_name, self.make_cd(action="manager", user_id=manager.user_id))]
                             )
                     buttons.append(await self._back("partner", company=self.company))
                     return buttons

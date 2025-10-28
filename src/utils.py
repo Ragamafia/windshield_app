@@ -70,5 +70,5 @@ async def check_discount(user: User):
     if company := await db.get_partner_by_id(user.company_id):
         return company.discount
     else:
-        logger.warning(f"User {user.username} not tied to the company")
+        logger.warning(f"User {user.first_name} not tied to the company")
         return False

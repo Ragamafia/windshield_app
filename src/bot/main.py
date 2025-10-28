@@ -109,7 +109,7 @@ class BaseCallBackDataController:
 
     async def get_stat_text(self):
         logger.info(
-            f"Request statistic. User {self.user.username}. "
+            f"Request statistic. User {self.user.first_name}. "
             f"Processed - {await db.count_processed_level(level=True)}. "
             f"Left - {await db.count_processed_level(level=False)}"
         )
@@ -154,7 +154,7 @@ class BaseCallBackDataController:
                 info += for_admin
             else:
                 info += for_user
-            logger.info(f"User {self.user.username}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
+            logger.info(f"User {self.user.first_name}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
             return info
 
         else:
@@ -164,7 +164,7 @@ class BaseCallBackDataController:
             )
 
     async def get_parse_text(self):
-        logger.info(f"User {self.user.username}. Start parse")
+        logger.info(f"User {self.user.first_name}. Start parse")
         return "Sorry, not implemented"
 
 

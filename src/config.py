@@ -31,7 +31,7 @@ class Config(BaseSettings):
     templates: Path = Path("app/templates")
 
     admins: list[int] = [1377785914, 1015877207]
-    admin_url: str = "https://t.me/raga_mafia"
+    admin_url: str = "https://t.me/TonirStark"
 
     MAX_PAGE_SIZE: int = 50  # max 98
 

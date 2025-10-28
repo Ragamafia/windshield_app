@@ -43,7 +43,8 @@ class DetailerBot(Bot):
                 user_dict = await db.create_user(
                     user.id, user.username, user.first_name, admin=user.id in cfg.admins
                 )
-                logger.info(f'Create user: {user.username}, ID {user.id}. is_admin={user_dict["admin"]}')
+                logger.info(f'Create user: {user.first_name}'
+                            f'ID {user.id}. is_admin={user_dict["admin"]}')
                 user = User(**user_dict)
                 return await handler(callback, user)
 
