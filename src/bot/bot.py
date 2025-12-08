@@ -32,6 +32,7 @@ class DetailerBot(Bot):
         ])
         await self.dp.start_polling(self)
 
+
     def authorize(self, handler):
         @functools.wraps(handler)
         async def wrapper(callback: Message | CallbackQuery):

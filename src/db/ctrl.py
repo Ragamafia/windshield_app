@@ -57,8 +57,11 @@ class DataBaseController(BaseDB):
                     result.append([car.brand, car.model, car.glass_id])
             return result
 
-    async def get_brands(self):
-        return await self.brand.filter().all()
+    async def get_brands(self, letter: str):
+        if letter:
+            return await self.brand.filter(brand__startswith=letter).all()
+        else:
+            return await self.brand.filter().all()
 
     async def get_models(self, brand):
         return await self.model.filter(brand=brand)

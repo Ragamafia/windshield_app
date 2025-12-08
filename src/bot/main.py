@@ -14,17 +14,18 @@ def parse_callback_data(callback: str):
     try:
         handler, data = callback.split(":")
         action, values = data.split("#", 1)
-        brand, model, years, page_and_level = values.split("*") if values else []
+        letter, brand, model, years, page_and_level = values.split("*") if values else []
         page_and_level = page_and_level.split("##")
         paginate_page = int(page_and_level[0]) if page_and_level[0] else 0
         level = page_and_level[1]
-        return action, brand, model, years, paginate_page, level
+        return action, letter, brand, model, years, paginate_page, level
 
     except ValueError:
         return None, []
 
 def make_cd(cd: "CallBackData", **kwargs):
     return (f"car:{kwargs.get("action", cd.action) or ""}#"
+            f"{kwargs.get("letter", cd.letter) or ""}*"
             f"{kwargs.get("brand", cd.brand) or ""}*"
             f"{kwargs.get("model", cd.model) or ""}*"
             f"{kwargs.get("years", cd.years) or ""}*"
@@ -33,6 +34,7 @@ def make_cd(cd: "CallBackData", **kwargs):
 
 class BaseCallBackDataController:
     action: str | None
+    letter: str | None
     brand: str | None
     model: str | None
     years: str | None
@@ -41,17 +43,17 @@ class BaseCallBackDataController:
 
     def __init__(self, callback: CallbackQuery, user: User):
         self.user = user
-        self.action, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
+        self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
         self.year_start = self.years.split("-")[0]
 
     async def post_init(self):
-        if self.brand and self.model and self.years:
+        if self.letter and self.brand and self.model and self.years:
             self.car = await db.get_car(self.brand, self.model, self.year_start)
             if self.level:
                 self.updated = await db.update_level(self.brand, self.model, self.car.gen, self.level)
                 self.temp_level = self.level
                 if self.action == "set":
-                    self.level, self.brand, self.model, self.years = None, None, None, None
+                    self.level, self.letter, self.brand, self.model, self.years = None, None, None, None, None
 
     async def text(self) -> str | None:
         if self.action == "set":
@@ -94,7 +96,9 @@ class BaseCallBackDataController:
                     f"Уровень сложности - {self.temp_level}")
 
     async def get_car_text(self):
-        if self.action == "car" and not self.brand:
+        if self.action == "car" and not self.letter:
+            return f"Выберите букву:"
+        elif self.action == "car" and not self.brand:
             return f"Выберите бренд:"
         elif self.action == "car" and not self.model:
             return f"Выберите модель для {self.brand.capitalize()}:"
@@ -200,8 +204,11 @@ class BaseCallBackDataController:
                 return []
 
     async def get_items(self):
+        if self.action == "car" and not self.letter:
+            return []
+
         if not self.brand:
-            brands = await db.get_brands()
+            brands = await db.get_brands(self.letter)
             return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
 
         elif not self.model:
@@ -225,7 +232,19 @@ class BaseCallBackDataController:
             return items
 
     async def get_car_buttons(self):
-        if items := await self.get_items():
+        if self.action == "car" and not self.letter:
+            a_g = "ABCDEFG"
+            h_n = "HIJKLMN"
+            o_u = "OPQRSTU"
+            v_z = "VWXYZ"
+            return [
+                [(f"     {i}", f"car:car#{i}****##") for i in a_g],
+                [(f"     {i}", f"car:car#{i}****##") for i in h_n],
+                [(f"     {i}", f"car:car#{i}****##") for i in o_u],
+                [(f"     {i}", f"car:car#{i}****##") for i in v_z],
+            ]
+
+        elif items := await self.get_items():
             return await self.get_page_items(items)
 
         elif self.action == "edit" or self.action == "set":
