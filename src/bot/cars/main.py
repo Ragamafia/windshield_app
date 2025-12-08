@@ -48,10 +48,9 @@ class CarCallbackDataController(BaseController):
         self.user = user
         self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
         self.year_start = self.years.split("-")[0]
-        print(self.action, self.letter, self.brand, self.model, self.years, self.page, self.level)
 
     async def post_init(self):
-        if self.letter and self.brand and self.model and self.years:
+        if self.brand and self.model and self.years:
             self.car = await db.get_car(self.brand, self.model, self.year_start)
             if self.level:
                 self.updated = await db.update_level(self.brand, self.model, self.car.gen, self.level)
@@ -159,7 +158,8 @@ class CarCallbackDataController(BaseController):
         else:
             return (
                 f"Пожалуйста, дождитесь авторизации ⏱\n"
-                f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️"
+                f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️\n"
+                f"{cfg.admin_url}"
             )
 
 
@@ -196,15 +196,11 @@ class CarCallbackDataController(BaseController):
 
     async def get_car_buttons(self):
         if self.action == "car" and not self.letter:
-            a_g = "ABCDEFG"
-            h_n = "HIJKLMN"
-            o_u = "OPQRSTU"
-            v_z = "VWXYZ"
             return [
-                [(f"     {i}", f"car:car#{i}****##") for i in a_g],
-                [(f"     {i}", f"car:car#{i}****##") for i in h_n],
-                [(f"     {i}", f"car:car#{i}****##") for i in o_u],
-                [(f"     {i}", f"car:car#{i}****##") for i in v_z],
+                [(f"     {i}", f"car:car#{i}****##") for i in "ABCDEFG"],
+                [(f"     {i}", f"car:car#{i}****##") for i in "HIJKLMN"],
+                [(f"     {i}", f"car:car#{i}****##") for i in "OPQRSTU"],
+                [(f"     {i}", f"car:car#{i}****##") for i in "VWXYZ"],
             ]
 
         elif items := await self.get_items():
