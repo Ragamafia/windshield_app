@@ -2,12 +2,12 @@ from aiogram import F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, FSInputFile
 
-from bot.main import BaseCallBackDataController
+from bot.cars.main import CarCallbackDataController
 from models import User
 from config import cfg
 
 
-def register_main_handlers(bot):
+def register_car_handlers(bot):
     @bot.router.callback_query(F.data.startswith("/start"))
     @bot.router.message(CommandStart())
     @bot.authorize
@@ -32,7 +32,7 @@ def register_main_handlers(bot):
                     ("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##"),
                 ]
             ]
-        keyboard = BaseCallBackDataController._get_keyboard(keyboard)
+        keyboard = CarCallbackDataController._get_keyboard(keyboard)
         msg = message if isinstance(message, Message) else message.message
         await msg.answer("ГЛАВНОЕ МЕНЮ", reply_markup=keyboard)
 
@@ -48,7 +48,7 @@ def register_main_handlers(bot):
     @bot.router.callback_query(F.data.startswith("car:"))
     @bot.authorize
     async def car_callback_handler(callback: CallbackQuery, user: User):
-        data = BaseCallBackDataController(callback, user)
+        data = CarCallbackDataController(callback, user)
         await data.post_init()
         text = await data.text()
         keyboard = await data.keyboard()

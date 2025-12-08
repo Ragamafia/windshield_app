@@ -5,7 +5,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand, Message, CallbackQuery
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from bot.handlers import register_main_handlers
+from bot.cars.handlers import register_car_handlers
 from bot.partners.handlers import register_partners_handlers
 from db.ctrl import db
 from models import User
@@ -24,7 +24,7 @@ class DetailerBot(Bot):
 
     async def run(self):
         self.dp.include_router(self.router)
-        register_main_handlers(self)
+        register_car_handlers(self)
         register_partners_handlers(self)
 
         await self.set_my_commands([
@@ -44,7 +44,7 @@ class DetailerBot(Bot):
                 user_dict = await db.create_user(
                     user.id, user.username, user.first_name, admin=user.id in cfg.admins
                 )
-                logger.info(f'Create user: {user.first_name}'
+                logger.info(f'Create user: {user.first_name}, '
                             f'ID {user.id}. is_admin={user_dict["admin"]}')
                 user = User(**user_dict)
                 return await handler(callback, user)

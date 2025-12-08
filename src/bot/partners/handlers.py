@@ -9,9 +9,10 @@ from models import User
 
 
 def register_partners_handlers(bot):
+
     @bot.router.callback_query(F.data.startswith("partners:add"))
     async def add_handler(callback: CallbackQuery, state: FSMContext):
-        await callback.message.answer("Введите новое имя или название фирмы:")
+        await callback.message.answer("Введите новое название фирмы:")
         await state.set_state(EditPartner.name)
 
     @bot.router.message(EditPartner.name)

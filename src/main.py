@@ -1,5 +1,4 @@
 import asyncio
-import sqlite3
 
 import uvicorn
 

@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup
 
+from bot.common import BaseController
 from app.calc import Calculate
+from models import User
 from utils import check_discount
 from db.ctrl import db
-from models import User
 from config import cfg
 from logger import logger
 
@@ -32,7 +33,8 @@ def make_cd(cd: "CallBackData", **kwargs):
             f"{kwargs.get("page", cd.page) or ""}##"
             f"{kwargs.get("level", cd.level) or ""}")
 
-class BaseCallBackDataController:
+
+class CarCallbackDataController(BaseController):
     action: str | None
     letter: str | None
     brand: str | None
@@ -42,9 +44,11 @@ class BaseCallBackDataController:
     level: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
+        super().__init__(user)
         self.user = user
         self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
         self.year_start = self.years.split("-")[0]
+        print(self.action, self.letter, self.brand, self.model, self.years, self.page, self.level)
 
     async def post_init(self):
         if self.letter and self.brand and self.model and self.years:
@@ -111,15 +115,6 @@ class BaseCallBackDataController:
                 f"Выберите действие:"
             )
 
-    async def get_stat_text(self):
-        logger.info(
-            f"Request statistic. User {self.user.first_name}. "
-            f"Processed - {await db.count_processed_level(level=True)}. "
-            f"Left - {await db.count_processed_level(level=False)}"
-        )
-        return (f"Обработано автомобилей - {await db.count_processed_level(level=True)}\n"
-                f"Осталось - {await db.count_processed_level(level=False)}")
-
     async def get_glass_info_text(self):
         discount = await check_discount(self.user)
         if discount or str(discount) == "0":
@@ -167,12 +162,8 @@ class BaseCallBackDataController:
                 f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️"
             )
 
-    async def get_parse_text(self):
-        logger.info(f"User {self.user.first_name}. Start parse")
-        return "Sorry, not implemented"
 
-
-    async def keyboard(self) -> InlineKeyboardMarkup | None:
+    async def keyboard(self) -> InlineKeyboardMarkup:
         keyboard = [
             * await self._get_action_buttons(),
             * await self._get_pagination_buttons(),
@@ -202,34 +193,6 @@ class BaseCallBackDataController:
                     return []
             case _:
                 return []
-
-    async def get_items(self):
-        if self.action == "car" and not self.letter:
-            return []
-
-        if not self.brand:
-            brands = await db.get_brands(self.letter)
-            return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
-
-        elif not self.model:
-            available_models = await db.get_avialable_models(self.brand)
-            result = [
-                i for i in await db.get_models(self.brand)
-                if i.model in available_models
-            ]
-            return [[(m.model.upper(), make_cd(self, model=m.model))] for m in result]
-
-        elif not self.years:
-            car_gens = await db.get_gens(self.brand, self.model)
-            items = [f"{g.year_start}-{g.year_end}" for g in car_gens]
-            return [[(g, make_cd(self, years=g))] for g in items]
-
-    async def get_page_items(self, items):
-        if len(items) > cfg.MAX_PAGE_SIZE:
-            page = self.page if self.page else 0
-            return items[page * cfg.MAX_PAGE_SIZE: (page + 1) * cfg.MAX_PAGE_SIZE]
-        else:
-            return items
 
     async def get_car_buttons(self):
         if self.action == "car" and not self.letter:
@@ -286,18 +249,34 @@ class BaseCallBackDataController:
         else:
             return []
 
-    @staticmethod
-    async def _get_main_menu_buttons():
-        return [[("⤴ ГЛАВНОЕ МЕНЮ ⤴", "/start")]]
+    async def get_items(self):
+        if self.action == "car" and not self.letter:
+            return []
 
-    @staticmethod
-    def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
-        return InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=text, callback_data=callback) for text, callback in row]
-                for row in colls
+        if not self.brand:
+            brands = await db.get_brands(self.letter)
+            return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
+
+        elif not self.model:
+            available_models = await db.get_avialable_models(self.brand)
+            result = [
+                i for i in await db.get_models(self.brand)
+                if i.model in available_models
             ]
-        )
+            return [[(m.model.upper(), make_cd(self, model=m.model))] for m in result]
+
+        elif not self.years:
+            car_gens = await db.get_gens(self.brand, self.model)
+            items = [f"{g.year_start}-{g.year_end}" for g in car_gens]
+            return [[(g, make_cd(self, years=g))] for g in items]
+
+    async def get_page_items(self, items):
+        if len(items) > cfg.MAX_PAGE_SIZE:
+            page = self.page if self.page else 0
+            return items[page * cfg.MAX_PAGE_SIZE: (page + 1) * cfg.MAX_PAGE_SIZE]
+        else:
+            return items
+
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):

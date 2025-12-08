@@ -57,7 +57,7 @@ class DataBaseController(BaseDB):
                     result.append([car.brand, car.model, car.glass_id])
             return result
 
-    async def get_brands(self, letter: str):
+    async def get_brands(self, letter: str = None):
         if letter:
             return await self.brand.filter(brand__startswith=letter).all()
         else:
