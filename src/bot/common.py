@@ -28,11 +28,6 @@ class BaseController:
     async def _get_main_menu_buttons():
         return [[("⤴ ГЛАВНОЕ МЕНЮ ⤴", "/start")]]
 
-    async def _back(self, action: str, company=None):
-        return [
-            ("🔙 НАЗАД 🔙", self.make_cd(action=action, company=company))
-        ]
-
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(

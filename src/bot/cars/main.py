@@ -24,15 +24,6 @@ def parse_callback_data(callback: str):
     except ValueError:
         return None, []
 
-def make_cd(cd: "CallBackData", **kwargs):
-    return (f"car:{kwargs.get("action", cd.action) or ""}#"
-            f"{kwargs.get("letter", cd.letter) or ""}*"
-            f"{kwargs.get("brand", cd.brand) or ""}*"
-            f"{kwargs.get("model", cd.model) or ""}*"
-            f"{kwargs.get("years", cd.years) or ""}*"
-            f"{kwargs.get("page", cd.page) or ""}##"
-            f"{kwargs.get("level", cd.level) or ""}")
-
 
 class CarCallbackDataController(BaseController):
     action: str | None
@@ -44,6 +35,7 @@ class CarCallbackDataController(BaseController):
     level: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
+        print(callback.data)
         super().__init__(user)
         self.user = user
         self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
@@ -57,6 +49,15 @@ class CarCallbackDataController(BaseController):
                 self.temp_level = self.level
                 if self.action == "set":
                     self.level, self.letter, self.brand, self.model, self.years = None, None, None, None, None
+
+    def make_cd(self: "CallBackData", **kwargs):
+        return (f"car:{kwargs.get("action", self.action) or ""}#"
+                f"{kwargs.get("letter", self.letter) or ""}*"
+                f"{kwargs.get("brand", self.brand) or ""}*"
+                f"{kwargs.get("model", self.model) or ""}*"
+                f"{kwargs.get("years", self.years) or ""}*"
+                f"{kwargs.get("page", self.page) or ""}##"
+                f"{kwargs.get("level", self.level) or ""}")
 
     async def text(self) -> str | None:
         if self.action == "set":
@@ -102,7 +103,10 @@ class CarCallbackDataController(BaseController):
         if self.action == "car" and not self.letter:
             return f"Выберите букву:"
         elif self.action == "car" and not self.brand:
-            return f"Выберите бренд:"
+            if brands := await db.get_brands(self.letter):
+                return f"Выберите бренд:"
+            else:
+                return f'В базе нет брендов на букву "{self.letter.upper()}" 🤷‍♂️'
         elif self.action == "car" and not self.model:
             return f"Выберите модель для {self.brand.capitalize()}:"
         elif self.action == "car" and not self.years:
@@ -187,20 +191,23 @@ class CarCallbackDataController(BaseController):
             case "info":
                 if not self.user.admin:
                     return [
-                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", make_cd(self, action="contact"))]
+                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", self.make_cd(action="contact"))],
+                        [("🔙 НАЗАД 🔙", self.make_cd(action="car"))]
                     ]
                 else:
-                    return []
+                    return [
+                        [("🔙 НАЗАД 🔙", self.make_cd(action="car"))]
+                    ]
             case _:
                 return []
 
     async def get_car_buttons(self):
         if self.action == "car" and not self.letter:
             return [
-                [(f"     {i}", f"car:car#{i}****##") for i in "ABCDEFG"],
-                [(f"     {i}", f"car:car#{i}****##") for i in "HIJKLMN"],
-                [(f"     {i}", f"car:car#{i}****##") for i in "OPQRSTU"],
-                [(f"     {i}", f"car:car#{i}****##") for i in "VWXYZ"],
+                [(f"     {i.upper()}", f"car:car#{i}****##") for i in "abcdefg"],
+                [(f"     {i.upper()}", f"car:car#{i}****##") for i in "hijklmn"],
+                [(f"     {i.upper()}", f"car:car#{i}****##") for i in "opqrstu"],
+                [(f"     {i.upper()}", f"car:car#{i}****##") for i in "vwxyz"],
             ]
 
         elif items := await self.get_items():
@@ -209,22 +216,27 @@ class CarCallbackDataController(BaseController):
         elif self.action == "edit" or self.action == "set":
             if not self.level:
                 return [
-                    [(str(level), make_cd(self, level=level)) for level in range(1, 6)],
-                    [(str(level), make_cd(self, level=level)) for level in range(6, 11)]
+                    [(str(level), self.make_cd(level=level)) for level in range(1, 6)],
+                    [(str(level), self.make_cd(level=level)) for level in range(6, 11)],
+                    [("🔙 НАЗАД 🔙", self.make_cd(action="car"))]
                 ]
             else:
                 return []
-        else:
+        elif self.action == "car"and self.brand and self.model and self.years:
             if self.user.admin:
                 return [
-                    [("ПОЛУЧИТЬ ИНФО ℹ️", make_cd(self, action="info"))],
-                    [("РЕДАКТИРОВАТЬ ⚙️", make_cd(self, action="edit"))]
+                    [("ПОЛУЧИТЬ ИНФО ℹ️", self.make_cd(action="info"))],
+                    [("РЕДАКТИРОВАТЬ ⚙️", self.make_cd(action="edit"))],
+                    [("🔙 НАЗАД 🔙", self.make_cd(years=None))]
                 ]
             else:
                 return [
-                    [("ПОЛУЧИТЬ ИНФО ℹ️", make_cd(self, action="info"))],
-                    [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", make_cd(self, action="contact"))]
+                    [("ПОЛУЧИТЬ ИНФО ℹ️", self.make_cd(action="info"))],
+                    [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", self.make_cd(action="contact"))],
+                    [("🔙 НАЗАД 🔙", self.make_cd(years=None))]
                 ]
+        else:
+            return []
 
     async def _get_pagination_buttons(self):
         result = []
@@ -233,14 +245,14 @@ class CarCallbackDataController(BaseController):
                 if len(items) > cfg.MAX_PAGE_SIZE:
                     pages = len(items) // cfg.MAX_PAGE_SIZE
                     if int(self.page) > 0:
-                        result.append(("⏪", make_cd(self, page=self.page - 1)))
+                        result.append(("⏪", self.make_cd(page=self.page - 1)))
 
                     for page in range(1, pages + 1):
                         name = f"[{page + 1}]" if page == self.page else f"{page + 1}"
-                        result.append((name, make_cd(self, page=page)))
+                        result.append((name, self.make_cd(page=page)))
 
                     if pages != self.page:
-                        result.append(("⏩", make_cd(self, page=self.page + 1)))
+                        result.append(("⏩", self.make_cd(page=self.page + 1)))
             return [result]
         else:
             return []
@@ -250,8 +262,12 @@ class CarCallbackDataController(BaseController):
             return []
 
         if not self.brand:
-            brands = await db.get_brands(self.letter)
-            return [[(b.brand.upper(), make_cd(self, brand=b.brand, page=0))] for b in brands]
+            if brands := await db.get_brands(self.letter):
+                buttons = [[(b.brand.upper(), self.make_cd(brand=b.brand, page=0))] for b in brands]
+                buttons.append([("🔙 НАЗАД 🔙", self.make_cd(letter=None))])
+                return buttons
+            else:
+                return []
 
         elif not self.model:
             available_models = await db.get_avialable_models(self.brand)
@@ -259,12 +275,16 @@ class CarCallbackDataController(BaseController):
                 i for i in await db.get_models(self.brand)
                 if i.model in available_models
             ]
-            return [[(m.model.upper(), make_cd(self, model=m.model))] for m in result]
+            buttons = [[(m.model.upper(), self.make_cd(model=m.model))] for m in result]
+            buttons.append([("🔙 НАЗАД 🔙", self.make_cd(brand=None))])
+            return buttons
 
         elif not self.years:
             car_gens = await db.get_gens(self.brand, self.model)
             items = [f"{g.year_start}-{g.year_end}" for g in car_gens]
-            return [[(g, make_cd(self, years=g))] for g in items]
+            buttons = [[(g, self.make_cd(years=g))] for g in items]
+            buttons.append([("🔙 НАЗАД 🔙", self.make_cd(model=None))])
+            return buttons
 
     async def get_page_items(self, items):
         if len(items) > cfg.MAX_PAGE_SIZE:
@@ -273,6 +293,14 @@ class CarCallbackDataController(BaseController):
         else:
             return items
 
+    async def _back(self, action: str, letter=None, brand=None, model=None, years=None):
+        return [
+            ("🔙 НАЗАД 🔙", self.make_cd(action=action,
+                                  letter=letter,
+                                  brand=brand,
+                                  model=model,
+                                  years=years))
+        ]
 
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, not self.level)):
