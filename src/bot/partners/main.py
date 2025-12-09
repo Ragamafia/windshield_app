@@ -116,98 +116,104 @@ class PartnerCallBackController(BaseController):
     async def keyboard(self) -> InlineKeyboardMarkup | None:
         keyboard = [
             * await self._get_action_buttons(),
-            * await self._get_main_menu_buttons()
+            * await self.get_main_menu_button()
         ]
         return self._get_keyboard(keyboard)
 
     async def _get_action_buttons(self):
-        buttons = []
+
+        def row(text, **cd_kwargs):
+            return [(text, self.make_cd(**cd_kwargs))]
+
+        async def back(action, **kwargs):
+            return [await self._back(action, **kwargs)]
+
         match self.action:
+
             case "set_partners":
                 return [
-                    [("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", self.make_cd(action="add"))],
-                    [("СПИСОК КОМПАНИЙ 🗂️", self.make_cd(action="partners"))],
-                    [("ВСЕ МЕНЕДЖЕРЫ 👔", self.make_cd(action="managers"))]
+                    row("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", action="add"),
+                    row("СПИСОК КОМПАНИЙ 🗂️", action="partners"),
+                    row("ВСЕ МЕНЕДЖЕРЫ 👔", action="managers"),
                 ]
 
             case "partners":
-                if partners := await db.get_partners():
-                    for partner in partners:
-                        buttons.append(
-                            [(partner.name, self.make_cd(action="partner", company=partner.name))]
-                        )
-                buttons.append(await self._back("set_partners"))
+                partners = await db.get_partners()
+                buttons = [
+                    row(p.name, action="partner", company=p.name)
+                    for p in partners
+                ]
+                buttons += await back("set_partners")
                 return buttons
 
             case "managers":
                 managers = await db.get_users()
-
-                for manager in managers:
-                    buttons.append(
-                        [(manager.first_name, self.make_cd(action="manager", user_id=manager.user_id))]
-                    )
-                buttons.append(await self._back("set_partners"))
+                buttons = [
+                    row(m.first_name, action="manager", user_id=m.user_id)
+                    for m in managers
+                ]
+                buttons += await back("set_partners")
                 return buttons
 
             case "partner":
-                buttons = [
-                [("ИЗМЕНИТЬ СКИДКУ 💰", self.make_cd(action="edit_discount", company=self.company))],
-                [("МЕНЕДЖЕРЫ 👔", self.make_cd(action="company_managers", company=self.company))],
-                [("УДАЛИТЬ КОМПАНИЮ 🗑️", self.make_cd(action="remove"))],
-                await self._back("partners")
+                return [
+                    row("ИЗМЕНИТЬ СКИДКУ 💰", action="edit_discount", company=self.company),
+                    row("МЕНЕДЖЕРЫ 👔", action="company_managers", company=self.company),
+                    row("УДАЛИТЬ КОМПАНИЮ 🗑️", action="remove"),
+                    *(await back("partners")),
                 ]
-                return buttons
 
             case "company_managers":
-                if partner := await db.get_partner(self.company):
-                    if managers := await db.get_users_by_id(partner.partner_id):
-                        for manager in managers:
-                            buttons.append(
-                                [(manager.first_name, self.make_cd(action="manager", user_id=manager.user_id))]
-                            )
-                    buttons.append(await self._back("partner", company=self.company))
-                    return buttons
+                partner = await db.get_partner(self.company)
+                managers = await db.get_users_by_id(partner.partner_id) if partner else []
+
+                buttons = [
+                    row(m.first_name, action="manager", user_id=m.user_id)
+                    for m in managers
+                ]
+                buttons += await back("partner", company=self.company)
+                return buttons
 
             case "manager":
-                action = "partner" if self.company else "managers"
                 manager = await db.get_user(self.user_id)
+                base_action = "partner" if self.company else "managers"
+
                 if manager.company_id:
-                    buttons.append(
-                        [("ОТВЯЗАТЬ ОТ КОМПАНИИ ➖", self.make_cd(action="remove_company", user_id=self.user_id))]
-                    )
+                    main_button = row("ОТВЯЗАТЬ ОТ КОМПАНИИ ➖", action="remove_company",
+                                      user_id=self.user_id)
                 else:
-                    buttons.append(
-                        [("ДОБАВИТЬ В КОМПАНИЮ ➕", self.make_cd(action="company_add_manager"))]
-                    )
-                buttons.append(await self._back(action, company=self.company if self.company else None))
-                return buttons
+                    main_button = row("ДОБАВИТЬ В КОМПАНИЮ ➕", action="company_add_manager")
+
+                return [
+                    main_button,
+                    *(await back(base_action, company=self.company)),
+                ]
 
             case "company_add_manager":
-                if partners := await db.get_partners():
-                    for partner in partners:
-                        buttons.append(
-                            [(partner.name, self.make_cd(action="update", company=partner.name))]
-                        )
-                buttons.append(await self._back("managers", company=self.company))
+                partners = await db.get_partners()
+                buttons = [
+                    row(p.name, action="update", company=p.name)
+                    for p in partners
+                ]
+                buttons += await back("managers", company=self.company)
                 return buttons
 
-            case ("update"):
-                buttons.append(await self._back("set_partners"))
-                return buttons
+            case "update":
+                return await back("set_partners")
 
             case "remove":
                 return [
-                    [("ДА ✅", self.make_cd(action="remove_partner", company=self.company))],
-                    [("НЕТ ❌", self.make_cd(action="set_partners"))]
+                    row("ДА ✅", action="remove_partner", company=self.company),
+                    row("НЕТ ❌", action="set_partners"),
                 ]
+
             case "remove_partner":
                 return [
-                    [("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", self.make_cd(action="set_partners"))]
+                    row("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", action="set_partners"),
                 ]
 
             case "remove_company":
-                buttons.append(await self._back("set_partners"))
-                return buttons
+                return await back("set_partners")
 
             case _:
                 return []

@@ -23,9 +23,8 @@ class BaseController:
         logger.info(f"User {self.user.first_name}. Start parse")
         return "Sorry, not implemented"
 
-
     @staticmethod
-    async def _get_main_menu_buttons():
+    async def get_main_menu_button():
         return [[("⤴ ГЛАВНОЕ МЕНЮ ⤴", "/start")]]
 
     @staticmethod
