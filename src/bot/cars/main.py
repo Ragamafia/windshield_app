@@ -35,7 +35,6 @@ class CarCallbackDataController(BaseController):
     level: str | None
 
     def __init__(self, callback: CallbackQuery, user: User):
-        print(callback.data)
         super().__init__(user)
         self.user = user
         self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
@@ -49,6 +48,7 @@ class CarCallbackDataController(BaseController):
                 self.temp_level = self.level
                 if self.action == "set":
                     self.level, self.letter, self.brand, self.model, self.years = None, None, None, None, None
+
 
     def make_cd(self: "CallBackData", **kwargs):
         return (f"car:{kwargs.get("action", self.action) or ""}#"
@@ -191,7 +191,7 @@ class CarCallbackDataController(BaseController):
             case "info":
                 if not self.user.admin:
                     return [
-                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", self.make_cd(action="contact"))]
+                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##")]
                     ] + self.back(action="car")
                 else:
                     return self.back(action="car")
@@ -222,7 +222,7 @@ class CarCallbackDataController(BaseController):
                     [(str(level), self.make_cd(level=level)) for level in range(6, 11)],
                 ] + self.back(action="car")
             else:
-                return self.back(action="car")
+                return self.back(action="car", level=None)
 
         elif self.action == "car" and self.brand and self.model and self.years:
             buttons = [
@@ -231,10 +231,9 @@ class CarCallbackDataController(BaseController):
             if self.user.admin:
                 buttons.append([("РЕДАКТИРОВАТЬ ⚙️", self.make_cd(action="edit"))])
             else:
-                buttons.append([("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", self.make_cd(action="contact"))])
+                buttons.append([("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##")])
 
             return buttons + self.back(years=None)
-
         else:
             return self.back(letter=None)
 
@@ -299,7 +298,7 @@ class CarCallbackDataController(BaseController):
         alphabet = "abcdefghijklmnopqrstuvwxyz"
         rows = [alphabet[i:i + chunk] for i in range(0, len(alphabet), chunk)]
         return [
-            [(f"      {ch.upper()}", f"{prefix}{ch}****##") for ch in row]
+            [(f"   {ch.upper()}   ", f"{prefix}{ch}****##") for ch in row]
             for row in rows
         ]
 
