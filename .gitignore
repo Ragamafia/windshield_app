@@ -30,4 +30,5 @@ data/*
 iqt.egg-info
 src/webdriver
 database.db
-
+FirstDetailer.png
+QR1.png

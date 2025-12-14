@@ -6,6 +6,7 @@ class Users(Model):
     user_id = fields.IntField(max_length=50, null=True)
     company_id = fields.CharField(max_length=50, null=True)
     admin = fields.BooleanField(default=False)
+    is_manager = fields.BooleanField(default=False)
     username = fields.CharField(max_length=50, null=True)
     first_name = fields.CharField(max_length=50, null=True)
     banned = fields.BooleanField(default=False)

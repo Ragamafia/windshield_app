@@ -32,20 +32,29 @@ class DetailerBot(Bot):
         ])
         await self.dp.start_polling(self)
 
-
     def authorize(self, handler):
         @functools.wraps(handler)
         async def wrapper(callback: Message | CallbackQuery):
             msg = callback if isinstance(callback, Message) else callback
+
             if user := await db.get_user(msg.from_user.id):
                 return await handler(callback, user)
+
             else:
+                try:
+                    qr_code_id = msg.text.split(" ")[1]
+                    is_manager = True
+                except IndexError:
+                    is_manager = False
                 user = callback.from_user
-                user_dict = await db.create_user(
-                    user.id, user.username, user.first_name, admin=user.id in cfg.admins
-                )
+                user_dict = await db.create_user(user.id,
+                                                 user.username,
+                                                 user.first_name,
+                                                 admin=user.id in cfg.admins,
+                                                 is_manager=is_manager)
+
                 logger.info(f'Create user: {user.first_name}, '
-                            f'ID {user.id}. is_admin={user_dict["admin"]}')
+                            f'ID {user.id}. is_admin={user_dict["admin"]}. is_manager={user_dict["is_manager"]}')
                 user = User(**user_dict)
                 return await handler(callback, user)
 

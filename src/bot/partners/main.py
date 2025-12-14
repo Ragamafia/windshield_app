@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, CallbackQuery
 
-from bot.common import BaseController
+from bot.common import BaseKeyboard
 from models import User
 from db.ctrl import db
 
@@ -16,7 +16,7 @@ def parse_callback_data(callback: str):
         return None, []
 
 
-class PartnerCallBackController(BaseController):
+class PartnerCallBackController(BaseKeyboard):
     action: str | None
     company: str | None
     user_id: int | None

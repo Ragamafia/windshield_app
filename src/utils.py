@@ -66,7 +66,6 @@ class CheckerImage(BaseDB):
 
 
 async def check_discount(user: User):
-    user = await db.get_user(user.user_id)
     if company := await db.get_partner_by_id(user.company_id):
         return company.discount
     else:

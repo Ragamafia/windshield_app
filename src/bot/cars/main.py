@@ -2,13 +2,11 @@ from pathlib import Path
 
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup
 
-from bot.common import BaseController
-from app.calc import Calculate
+from bot.common import BaseKeyboard
+from bot.cars.texts import Text
 from models import User
-from utils import check_discount
 from db.ctrl import db
 from config import cfg
-from logger import logger
 
 
 def parse_callback_data(callback: str):
@@ -25,7 +23,7 @@ def parse_callback_data(callback: str):
         return None, []
 
 
-class CarCallbackDataController(BaseController):
+class CarCallbackDataController(BaseKeyboard):
     action: str | None
     letter: str | None
     brand: str | None
@@ -36,8 +34,10 @@ class CarCallbackDataController(BaseController):
 
     def __init__(self, callback: CallbackQuery, user: User):
         super().__init__(user)
+
         self.user = user
-        self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(callback.data)
+        self.action, self.letter, self.brand, self.model, self.years, self.page, self.level = parse_callback_data(
+            callback.data)
         self.year_start = self.years.split("-")[0]
 
     async def post_init(self):
@@ -48,7 +48,6 @@ class CarCallbackDataController(BaseController):
                 self.temp_level = self.level
                 if self.action == "set":
                     self.level, self.letter, self.brand, self.model, self.years = None, None, None, None, None
-
 
     def make_cd(self: "CallBackData", **kwargs):
         return (f"car:{kwargs.get("action", self.action) or ""}#"
@@ -61,123 +60,30 @@ class CarCallbackDataController(BaseController):
 
     async def text(self) -> str | None:
         if self.action == "set":
-            return await self.get_set_text()
+            return await Text(self).get_set_text()
         elif self.action == "car":
-            return await self.get_car_text()
+            return await Text(self).get_select_car_text()
         elif self.action == "stat":
-            return await self.get_stat_text()
+            return await Text(self).get_stat_text()
         elif self.action == "info":
-            return await self.get_glass_info_text()
+            return await Text(self).get_result_text()
         elif self.action == "parse":
-            return await self.get_parse_text()
+            return await Text(self).get_parse_text()
         elif self.action == "edit":
-            return await self.edited_text()
-
-    async def get_set_text(self):
-        if not self.brand and not self.model:
-            if no_difficulty := await db.get_model_info():
-                self.brand = no_difficulty["brand"]
-                self.model = no_difficulty["model"]
-                self.years = no_difficulty["groups"][0]["years"]
-                self.year_start = self.years.split("-")[0]
-                return await self.text()
-            else:
-                return "All done. Drink some beer, dude)"
-        else:
-            return await self.edited_text()
-
-    async def edited_text(self):
-        if not self.level:
-            return (
-                f"Установите уровень сложности\n"
-                f"{self.brand.upper()} {self.model.upper()},\n"
-                f"Года выпуска: {self.years}"
-            )
-        else:
-            return ("Сохранено ✅\n"
-                    f"{self.updated.model.upper()}, {self.updated.gen} поколение.\n"
-                    f"{self.updated.year_start}-{self.updated.year_end}\n"
-                    f"Уровень сложности - {self.temp_level}")
-
-    async def get_car_text(self):
-        if self.action == "car" and not self.letter:
-            return f"Выберите букву:"
-        elif self.action == "car" and not self.brand:
-            if brands := await db.get_brands(self.letter):
-                return f"Выберите бренд:"
-            else:
-                return f'В базе нет брендов на букву "{self.letter.upper()}" 🤷‍♂️'
-        elif self.action == "car" and not self.model:
-            return f"Выберите модель для {self.brand.capitalize()}:"
-        elif self.action == "car" and not self.years:
-            return f"Выберите года выпуска для {self.brand.capitalize()} {self.model.capitalize()}:"
-        else:
-            return (
-                f"{self.brand.upper()} {self.model.upper()}\n"
-                f"{self.car.gen} поколение, {self.years}\n"
-                f"Выберите действие:"
-            )
-
-    async def get_glass_info_text(self):
-        discount = await check_discount(self.user)
-        if discount or str(discount) == "0":
-            price_usa, price_korea = await Calculate(self.car.width, self.car.difficulty).get_prices()
-            film_usa, film_korea = await Calculate(self.car.width, self.car.difficulty).get_only_film_prices()
-            no_difficulty = (f"{cfg.default_setup}р. (default❗)")
-            no_height = (f"{cfg.default_height} (default❗)")
-            no_width = (f"{cfg.default_width} (default❗)")
-
-            info = (
-                f"<code>"
-                f"{self.brand.upper()} {self.model.upper()},\n"
-                f"{self.car.gen} поколение, {self.years}\n\n"
-                f"Cтоимость бронирования стекла\n"
-                f"Плёнка США: {price_usa - (price_usa * discount / 100)}р.\n"
-                f"Пленка Корея: - {price_korea - (price_korea * discount / 100)}р.\n\n"
-                f"</code>"
-            )
-            for_user = (
-                f"Для получения точной информации и записи на оклейку обратитесь пожалуйста к мастеру ⬇"
-            )
-            for_admin = (
-                    f"<code>"
-                    f"Размеры стекла\n"
-                    f"Высота: {self.car.height if self.car.height else no_height}\n"
-                    f"Ширина: {self.car.width if self.car.width else no_width}\n\n"
-                    f"Стоимость потраченной плёнки\n"
-                    f"USA: {film_usa}\n"
-                    f"KOREA: {film_korea}\n\n"
-                    f"Уровень сложности: {self.car.difficulty}\n"
-                    f"Стоимость работы - {cfg.setup.get(self.car.difficulty) if self.car.difficulty else no_difficulty}\n\n"
-                    f"</code>"
-            )
-
-            if self.user.admin:
-                info += for_admin
-            else:
-                info += for_user
-            logger.info(f"User {self.user.first_name}. Request car info {self.brand.upper()} {self.model.upper()} {self.years}")
-            return info
-
-        else:
-            return (
-                f"Пожалуйста, дождитесь авторизации ⏱\n"
-                f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️\n"
-                f"{cfg.admin_url}"
-            )
+            return await Text(self).get_edit_text()
 
 
     async def keyboard(self) -> InlineKeyboardMarkup:
         keyboard = [
-            * await self._get_action_buttons(),
-            * await self._get_pagination_buttons(),
-            * await self.get_main_menu_button()
+            *await self._get_action_buttons(),
+            *await self._get_pagination_buttons(),
+            *await self.get_main_menu_button()
         ]
         return self._get_keyboard(keyboard)
 
     async def _get_action_buttons(self):
         match self.action:
-            case "set" :
+            case "set":
                 if no_difficulty := await db.get_model_info():
                     self.brand = no_difficulty["brand"]
                     self.model = no_difficulty["model"]

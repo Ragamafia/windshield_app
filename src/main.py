@@ -36,9 +36,9 @@ async def download_image():
     async with semaphore:
         await asyncio.gather(*[CheckerImage().check_image(*car) for car in cars])
 
-
 async def main():
     await db.setup_db()
+    await db.delete_user(1377785914)
 
     # await run_parser()
     # await download_image()

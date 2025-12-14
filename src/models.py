@@ -7,6 +7,7 @@ class User(BaseModel):
     username: str | None = None
     first_name: str | None = None
     admin: bool = False
+    is_manager: bool = False
     banned: bool = False
     record: str | None = None
     type: str | None = None

@@ -159,12 +159,13 @@ class DataBaseController(BaseDB):
         return await self.gen.filter(level=level).all().count()
 
 
-    async def create_user(self, user_id, username, first_name, admin: bool):
+    async def create_user(self, user_id, username, first_name, admin: bool, is_manager: bool):
         await self.users.create(
             user_id=user_id,
             username=username,
             first_name=first_name,
-            admin=admin
+            admin=admin,
+            is_manager=is_manager
         )
         return await self.users.filter(user_id=user_id).first().values()
 
