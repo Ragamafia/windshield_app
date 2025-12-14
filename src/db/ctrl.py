@@ -172,13 +172,15 @@ class DataBaseController(BaseDB):
     async def get_users(self):
         return await self.users.all().order_by("first_name")
 
+    async def get_managers(self):
+        return await self.users.filter(is_manager=True).all().order_by("first_name")
+
     async def get_user(self, user_id):
         if user := await self.users.filter(user_id=user_id).first():
             return user
 
     async def get_users_by_id(self, id):
-        if users := await self.users.filter(company_id=id).all():
-            return users
+        return await self.users.filter(company_id=id).all()
 
     async def update_user(self, user_id, company_id):
         if user := await self.users.filter(user_id=user_id).first():

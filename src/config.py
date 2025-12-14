@@ -60,5 +60,7 @@ class Config(BaseSettings):
         10: 20000
     }
 
+    irkutsk_tz: str = "Asia/Irkutsk"
+
 
 cfg = Config()

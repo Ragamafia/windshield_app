@@ -10,6 +10,7 @@ class Users(Model):
     username = fields.CharField(max_length=50, null=True)
     first_name = fields.CharField(max_length=50, null=True)
     banned = fields.BooleanField(default=False)
+    created_at = fields.DatetimeField(auto_now_add=True)
 
 
 class Partner(Model):

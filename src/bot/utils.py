@@ -10,4 +10,4 @@ def generate_qr_code():
         qr = qrcode.make(url)
         qr.save(f"{name}.png")
 
-generate_qr_code()
+#generate_qr_code()

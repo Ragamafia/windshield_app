@@ -44,7 +44,7 @@ class DetailerBot(Bot):
                 try:
                     qr_code_id = msg.text.split(" ")[1]
                     is_manager = True
-                except IndexError:
+                except (IndexError,  AttributeError):
                     is_manager = False
                 user = callback.from_user
                 user_dict = await db.create_user(user.id,

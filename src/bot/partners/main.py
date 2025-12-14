@@ -1,8 +1,11 @@
+import pytz
+
 from aiogram.types import InlineKeyboardMarkup, CallbackQuery
 
 from bot.common import BaseKeyboard
 from models import User
 from db.ctrl import db
+from config import cfg
 
 
 def parse_callback_data(callback: str):
@@ -34,8 +37,12 @@ class PartnerCallBackController(BaseKeyboard):
     async def text(self) -> str | None:
         if self.action == "set_partners":
             return "НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ"
+        elif self.action == "users":
+            return "ПОЛЬЗОВАТЕЛИ:"
+        elif self.action == "user":
+            return await self.get_user_info_text()
         elif self.action == "managers":
-            return "МЕНЕДЖЕРЫ:"
+            return await self.get_managers()
         elif self.action == "company_add_manager":
             return "В какую компанию добавить сотрудника?"
         elif self.action == "remove":
@@ -54,6 +61,12 @@ class PartnerCallBackController(BaseKeyboard):
             return await self.remove_company()
         elif self.action == "remove_partner":
             return await self.partner_delete()
+
+    async def get_managers(self):
+        if managers := await db.get_managers():
+            return "МЕНЕДЖЕРЫ:"
+        else:
+            return "Список менеджеров пуст 🤷‍♂️"
 
     async def get_partners_text(self):
         if partners := await db.get_partners():
@@ -92,6 +105,32 @@ class PartnerCallBackController(BaseKeyboard):
                 f"Компания не назначена.\n\n"
                 f"Выберите действие:"
             )
+
+    async def get_user_info_text(self):
+        user = await db.get_user(self.user_id)
+        if user.admin:
+            status = "АДМИНИСТРАТОР"
+        else:
+            status = "МЕНЕДЖЕР" if user.is_manager else "ПОЛЬЗОВАТЕЛЬ"
+
+        if company_ok := await db.get_partner_by_id(user.company_id):
+            name = company_ok.name
+        else:
+            name = "Нет"
+        discount = company_ok.discount if company_ok else "Общие условия - 0"
+        tz = pytz.timezone(cfg.irkutsk_tz)
+        create_at = user.created_at.astimezone(tz)
+        return (
+            f"<code>"
+            f"Пользователь: {user.first_name}\n\n"
+            f"ID: {user.user_id}\n"
+            f"Username: {user.username}\n\n"
+            f"Статус: {status}\n"
+            f"Компания: {name}\n"
+            f"Дисконт: {discount}%\n\n"
+            f"Создан: {create_at.strftime("%d.%m.%Y %H:%M")}\n\n"
+            f"</code>"
+        )
 
     async def update(self):
         if partner := await db.get_partner(self.company):
@@ -134,7 +173,8 @@ class PartnerCallBackController(BaseKeyboard):
                 return [
                     row("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", action="add"),
                     row("СПИСОК КОМПАНИЙ 🗂️", action="partners"),
-                    row("ВСЕ МЕНЕДЖЕРЫ 👔", action="managers"),
+                    row("МЕНЕДЖЕРЫ 👔", action="managers"),
+                    row("ВСЕ ПОЛЬЗОВАТЕЛИ 🗄️", action="users"),
                 ]
 
             case "partners":
@@ -146,11 +186,20 @@ class PartnerCallBackController(BaseKeyboard):
                 buttons += await back("set_partners")
                 return buttons
 
+            case "users":
+                users = await db.get_users()
+                buttons = [
+                    row(u.first_name, action="user", user_id=u.user_id)
+                    for u in users
+                ]
+                buttons += await back("set_partners")
+                return buttons
+
             case "managers":
                 managers = await db.get_users()
                 buttons = [
                     row(m.first_name, action="manager", user_id=m.user_id)
-                    for m in managers
+                    for m in managers if m.is_manager
                 ]
                 buttons += await back("set_partners")
                 return buttons
@@ -165,7 +214,7 @@ class PartnerCallBackController(BaseKeyboard):
 
             case "company_managers":
                 partner = await db.get_partner(self.company)
-                managers = await db.get_users_by_id(partner.partner_id) if partner else []
+                managers = await db.get_users_by_id(partner.partner_id)
 
                 buttons = [
                     row(m.first_name, action="manager", user_id=m.user_id)
