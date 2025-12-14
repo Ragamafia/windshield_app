@@ -59,14 +59,14 @@ class Text():
         user = await db.get_user(self.data.user.user_id)
         if user.is_manager:
             if discount := await check_discount(user):
-                return await self.get_price_text(discount)
+                if discount or str(discount) == "0":
+                    return await self.get_price_text(discount)
             else:
                 return (
                     f"Пожалуйста, дождитесь авторизации ⏱\n"
                     f"Если ваш вопрос срочный, свяжитесь с администратором ⬇️\n"
                 )
         else:
-            print(f"user {self.data.user.first_name} not manager")
             return await self.get_price_text()
 
 
