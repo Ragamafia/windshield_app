@@ -38,8 +38,8 @@ async def download_image():
 
 async def main():
     await db.setup_db()
-    await db.delete_user(1377785914)  # Admin
-    await db.delete_user(8082484525)  # Admin
+    #await db.delete_user(1377785914)  # Admin
+    #await db.delete_user(8082484525)  # Admin
 
 
     # await run_parser()

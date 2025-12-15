@@ -1,6 +1,6 @@
 from db.ctrl import db
 from app.calc import Calculate
-from utils import check_discount
+from utils import aprooved
 from config import cfg
 from logger import logger
 
@@ -58,9 +58,8 @@ class Text():
     async def get_result_text(self):
         user = await db.get_user(self.data.user.user_id)
         if user.is_manager:
-            if discount := await check_discount(user):
-                if discount or str(discount) == "0":
-                    return await self.get_price_text(discount)
+            if company := await aprooved(user):
+                return await self.get_price_text(company.discount)
             else:
                 return (
                     f"Пожалуйста, дождитесь авторизации ⏱\n"
@@ -68,7 +67,6 @@ class Text():
                 )
         else:
             return await self.get_price_text()
-
 
     async def get_price_text(self, discount=0):
         price_usa, price_korea = await Calculate(self.data.car.width, self.data.car.difficulty).get_prices()

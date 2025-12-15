@@ -1,6 +1,6 @@
 import pytz
 
-from aiogram.types import InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from bot.common import BaseKeyboard
 from models import User
@@ -236,6 +236,11 @@ class PartnerCallBackController(BaseKeyboard):
                 return [
                     main_button,
                     *(await back(base_action, company=self.company)),
+                ]
+
+            case "user":
+                return [
+                    *(await back("users")),
                 ]
 
             case "company_add_manager":

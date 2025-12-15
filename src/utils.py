@@ -65,9 +65,9 @@ class CheckerImage(BaseDB):
             logger.success(f"Save new image: {brand} {model}")
 
 
-async def check_discount(user: User):
+async def aprooved(user: User):
     if company := await db.get_partner_by_id(user.company_id):
-        return company.discount
+        return company
     else:
         logger.warning(f"User {user.first_name} not tied to the company")
         return False
