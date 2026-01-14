@@ -37,15 +37,26 @@ class Text():
                     f"Уровень сложности - {self.data.temp_level}")
 
     async def get_select_car_text(self):
-        if self.data.action == "car" and not self.data.letter:
-            return f"Выберите букву:"
+        if self.data.action == "car" and not self.data.brand_start_letter:
+            return "Выберите букву:"
         elif self.data.action == "car" and not self.data.brand:
-            if brands := await db.get_brands(self.data.letter):
-                return f"Выберите бренд:"
+            if brands := await db.get_brands(self.data.brand_start_letter):
+                return "Выберите бренд:"
             else:
-                return f'В базе нет брендов на букву "{self.data.letter.upper()}" 🤷‍♂️'
+                return f'В базе нет брендов на букву "{self.data.brand_start_letter.upper()}" 🤷‍♂️'
+
         elif self.data.action == "car" and not self.data.model:
-            return f"Выберите модель для {self.data.brand.capitalize()}:"
+            models = await db.get_avialable_models(self.data.brand)
+            if len(models) > cfg.MAX_PAGE_SIZE:
+                if not self.data.model_start_letter:
+                    return f"Выберите букву для модели {self.data.brand.upper()}:"
+                elif models := await db.get_avialable_models(self.data.brand, self.data.model_start_letter):
+                    return f"Выберите модель для {self.data.brand.upper()}:"
+                elif not models:
+                    return f'У {self.data.brand.upper()} нет моделей на букву "{self.data.model_start_letter.capitalize()}" 🤷‍♂️'
+            else:
+                return f"Выберите модель для {self.data.brand.upper()}:"
+
         elif self.data.action == "car" and not self.data.years:
             return f"Выберите года выпуска для {self.data.brand.capitalize()} {self.data.model.capitalize()}:"
         else:

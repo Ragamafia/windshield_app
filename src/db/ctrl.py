@@ -66,8 +66,11 @@ class DataBaseController(BaseDB):
     async def get_models(self, brand):
         return await self.model.filter(brand=brand)
 
-    async def get_avialable_models(self, brand):
-        return await self.gen.filter(brand=brand).values_list("model", flat=True)
+    async def get_avialable_models(self, brand, model_start_letter: str = None):
+        if model_start_letter:
+            return await self.gen.filter(brand=brand, model__startswith=model_start_letter).values_list("model", flat=True)
+        else:
+            return await self.gen.filter(brand=brand).values_list("model", flat=True)
 
     async def get_gens(self, brand, model):
         return await self.gen.filter(brand=brand, model=model)

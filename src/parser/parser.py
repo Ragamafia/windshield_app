@@ -136,6 +136,7 @@ class MainParser:
                     "glass_id": self._parse_class_id(card),
                     **self._parse_years(card),
                     **self._parse_generation(card),
+                    "body": self._parse_body(card),
                 })
 
             except Exception as e:
@@ -151,6 +152,14 @@ class MainParser:
             id = card.parent.parent["href"].split("/")[-1]
 
         return id
+
+    def _parse_body(self, card):
+        div = card.find("div", class_=["caption-body"])
+        try:
+            body = card.find("div", {"class": "caption-body"}).text
+            return body
+        except:
+            return None
 
     def _parse_years(self, card):
         div = card.find("div", class_=["caption-year", "years"])
