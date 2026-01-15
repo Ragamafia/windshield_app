@@ -102,21 +102,19 @@ class CarCallbackDataController(BaseKeyboard):
                 return []
 
     async def get_car_buttons(self):
-        if self.action == "car":
-            if not self.brand_start_letter:
-                return self.get_brand_alphabet()
+        if self.action == "car" and not self.brand_start_letter:
+            return self.get_brand_alphabet()
 
-            else:
-                items = await self.get_items()
-                if not self.brand:
-                    return items + self.back(brand_start_letter=None)
-                if not self.model:
-                    if self.model_start_letter:
-                        return items + self.back(model_start_letter=None)
-                    else:
-                        return items + self.back(brand=None)
-                if not self.years:
-                    return items + self.back(model=None)
+        if items := await self.get_items():
+            if not self.brand:
+                return items + self.back(brand_start_letter=None)
+            if not self.model:
+                if self.model_start_letter:
+                    return items + self.back(model_start_letter=None)
+                else:
+                    return items + self.back(brand=None)
+            if not self.years:
+                return items + self.back(model=None)
 
         elif self.action in ("edit", "set"):
             if not self.level:
@@ -143,12 +141,11 @@ class CarCallbackDataController(BaseKeyboard):
 
     async def get_items(self):
         if not self.brand:
-            if brands := await db.get_brands(self.brand_start_letter):
-                return [
-                    [(b.brand.upper(), self.make_cd(brand=b.brand))]
-                    for b in brands
-                ]
-            return []
+            brands = await db.get_brands(self.brand_start_letter)
+            return [
+                [(b.brand.upper(), self.make_cd(brand=b.brand))]
+                for b in brands
+            ]
 
         elif not self.model:
             available_models = await db.get_avialable_models(self.brand)
@@ -177,20 +174,23 @@ class CarCallbackDataController(BaseKeyboard):
         else:
             return []
 
-    def get_brand_alphabet(self, prefix="car:car#", chunk=7):
+    def get_brand_alphabet(self, prefix="car:car#", letters_in_row=7):
         alphabet = "abcdefghijklmnopqrstuvwxyz"
-        rows = [alphabet[i:i + chunk] for i in range(0, len(alphabet), chunk)]
+        rows = [alphabet[i:i + letters_in_row] for i in range(0, len(alphabet), letters_in_row)]
         return [
             [(f"   {ch.upper()}   ", f"{prefix}{ch}****##") for ch in row]
             for row in rows
         ]
 
-    def get_model_alphabet(self, prefix="car:car#", chunk=7):
+    def get_model_alphabet(self, prefix="car:car#", letters_in_row=7, digits_in_row=5):
         alphabet = "abcdefghijklmnopqrstuvwxyz"
-        rows = [alphabet[i:i + chunk] for i in range(0, len(alphabet), chunk)]
+        digits = [str(d) for d in range(10)]
+        rows = [alphabet[i:i + letters_in_row] for i in range(0, len(alphabet), letters_in_row)]
+        digit_rows = [digits[i:i + digits_in_row] for i in range(0, len(digits), digits_in_row)]
+        all_rows = rows + digit_rows
         return [
             [(f"   {ch.upper()}   ", f"{prefix}{self.brand_start_letter}*{self.brand}***{ch}##") for ch in row]
-            for row in rows
+            for row in all_rows
         ]
 
     def back(self, **kwargs):

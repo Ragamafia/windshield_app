@@ -53,7 +53,7 @@ class Text():
                 elif models := await db.get_avialable_models(self.data.brand, self.data.model_start_letter):
                     return f"Выберите модель для {self.data.brand.upper()}:"
                 elif not models:
-                    return f'У {self.data.brand.upper()} нет моделей на букву "{self.data.model_start_letter.capitalize()}" 🤷‍♂️'
+                    return f'У {self.data.brand.upper()} нет моделей на "{self.data.model_start_letter.capitalize()}" 🤷‍♂️'
             else:
                 return f"Выберите модель для {self.data.brand.upper()}:"
 
@@ -80,8 +80,8 @@ class Text():
             return await self.get_price_text()
 
     async def get_price_text(self, discount=0):
-        price_usa, price_korea = await Calculate(self.data.car.width, self.data.car.difficulty).get_prices()
-        film_usa, film_korea = await Calculate(self.data.car.width, self.data.car.difficulty).get_only_film_prices()
+        price_usa, price_korea = await Calculate(self.data.car.width, self.data.car.difficulty, discount).get_prices()
+        film_usa, film_korea = await Calculate(self.data.car.width, self.data.car.difficulty, discount).get_only_film_prices()
         no_difficulty = (f"{cfg.default_setup}р. (default❗)")
         no_height = (f"{cfg.default_height} (default❗)")
         no_width = (f"{cfg.default_width} (default❗)")
@@ -91,8 +91,8 @@ class Text():
             f"{self.data.brand.upper()} {self.data.model.upper()},\n"
             f"{self.data.car.gen} поколение, {self.data.years}\n\n"
             f"Cтоимость бронирования стекла\n"
-            f"Плёнка США: {price_usa - (price_usa * discount / 100)}р.\n"
-            f"Пленка Корея: - {price_korea - (price_korea * discount / 100)}р.\n\n"
+            f"Плёнка США: {price_usa}р.\n"
+            f"Пленка Корея: - {price_korea}р.\n\n"
             f"</code>"
         )
         for_user = (

@@ -8,15 +8,16 @@ class Calculate:
     difficulty: int
     film_type: Literal['usa', 'korea']
 
-    def __init__(self, width, difficulty):
+    def __init__(self, width, difficulty, discount):
         self.width = width
         self.difficulty = difficulty
+        self.discount = discount
 
     def _get_price(self, film_type: Literal['usa', 'korea']):
-        if difficulty := cfg.setup.get(self.difficulty):
-            return difficulty + self._get_film_price(film_type)
-        else:
-            return cfg.default_setup + self._get_film_price(film_type)
+        difficulty = cfg.setup.get(self.difficulty) if self.difficulty is not None else cfg.default_setup
+        price = difficulty + self._get_film_price(film_type)
+        result = price - (price * self.discount / 100)
+        return int(result)
 
     def _get_film_price(self, film_type: Literal['usa', 'korea']):
         film_price = cfg.price_pm_usa if film_type == "usa" else cfg.price_pm_korea
