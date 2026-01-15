@@ -90,9 +90,9 @@ class Text():
             f"<code>"
             f"{self.data.brand.upper()} {self.data.model.upper()},\n"
             f"{self.data.car.gen} поколение, {self.data.years}\n\n"
-            f"Cтоимость бронирования стекла\n"
+            f"Cтоимость бронирования\n"
             f"Плёнка США: {price_usa}р.\n"
-            f"Пленка Корея: - {price_korea}р.\n\n"
+            f"Пленка Корея: {price_korea}р.\n\n"
             f"</code>"
         )
         for_user = (

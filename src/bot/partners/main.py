@@ -178,7 +178,9 @@ class PartnerCallBackController(BaseKeyboard):
                 ]
 
             case "partners":
+                print(f"partners!")
                 partners = await db.get_partners()
+                print(f"partners 2")
                 buttons = [
                     row(p.name, action="partner", company=p.name)
                     for p in partners
