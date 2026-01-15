@@ -16,8 +16,9 @@ class Calculate:
     def _get_price(self, film_type: Literal['usa', 'korea']):
         difficulty = cfg.setup.get(self.difficulty) if self.difficulty is not None else cfg.default_setup
         price = difficulty + self._get_film_price(film_type)
-        result = price - (price * self.discount / 100)
-        return int(result)
+        discount = price - (price * self.discount / 100)
+        result = round(discount / 100) * 100
+        return result
 
     def _get_film_price(self, film_type: Literal['usa', 'korea']):
         film_price = cfg.price_pm_usa if film_type == "usa" else cfg.price_pm_korea
