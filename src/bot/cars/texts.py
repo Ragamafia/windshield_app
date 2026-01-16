@@ -47,7 +47,7 @@ class Text():
 
         elif self.data.action == "car" and not self.data.model:
             models = await db.get_avialable_models(self.data.brand)
-            if len(models) > cfg.MAX_PAGE_SIZE:
+            if len(models) > cfg.max_brand_list:
                 if not self.data.model_start_letter:
                     return f"Выберите букву для модели {self.data.brand.upper()}:"
                 elif models := await db.get_avialable_models(self.data.brand, self.data.model_start_letter):
@@ -103,9 +103,9 @@ class Text():
                 f"Размеры стекла\n"
                 f"Высота: {self.data.car.height if self.data.car.height else no_height}\n"
                 f"Ширина: {self.data.car.width if self.data.car.width else no_width}\n\n"
-                f"Стоимость потраченной плёнки\n"
-                f"USA: {film_usa}\n"
-                f"KOREA: {film_korea}\n\n"
+                f"Расход материала\n"
+                f"Пленка USA: {film_usa}\n"
+                f"Пленка KOREA: {film_korea}\n\n"
                 f"Уровень сложности: {self.data.car.difficulty}\n"
                 f"Стоимость работы - {cfg.setup.get(self.data.car.difficulty) if self.data.car.difficulty else no_difficulty}\n\n"
                 f"</code>"

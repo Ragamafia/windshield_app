@@ -1,6 +1,6 @@
 import pytz
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, CallbackQuery
 
 from bot.common import BaseKeyboard
 from models import User
@@ -39,30 +39,30 @@ class PartnerCallBackController(BaseKeyboard):
             return "НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ"
         elif self.action == "users":
             return "ПОЛЬЗОВАТЕЛИ:"
-        elif self.action == "user":
-            return await self.get_user_info_text()
-        elif self.action == "managers":
-            return await self.get_managers()
         elif self.action == "company_add_manager":
             return "В какую компанию добавить сотрудника?"
         elif self.action == "remove":
             return "ВЫ УВЕРЕНЫ?"
-        elif self.action == "partners":
-            return await self.get_partners_text()
-        elif self.action == "partner":
-            return await self.get_partner_info_text()
+        elif self.action == "user":
+            return await self.get_user_info_text()
         elif self.action == "manager":
             return await self.get_manager_info_text()
+        elif self.action == "managers":
+            return await self.get_managers_text()
+        elif self.action == "partner":
+            return await self.get_partner_info_text()
+        elif self.action == "partners":
+            return await self.get_partners_text()
         elif self.action == "company_managers":
             return await self.get_company_managers_text()
         elif self.action == "update":
-            return await self.update()
+            return await self.pin_manager_text()
         elif self.action == "remove_company":
-            return await self.remove_company()
+            return await self.unpin_manager_text()
         elif self.action == "remove_partner":
             return await self.partner_delete()
 
-    async def get_managers(self):
+    async def get_managers_text(self):
         if managers := await db.get_managers():
             return "МЕНЕДЖЕРЫ:"
         else:
@@ -132,14 +132,14 @@ class PartnerCallBackController(BaseKeyboard):
             f"</code>"
         )
 
-    async def update(self):
+    async def pin_manager_text(self):
         if partner := await db.get_partner(self.company):
             await db.update_user(self.user_id, partner.partner_id)
             return (
                 f"Менеджер добавлен в компанию {partner.name}\n"
             )
 
-    async def remove_company(self):
+    async def unpin_manager_text(self):
             await db.update_user(self.user_id, None)
             return "Менеджер отвязан"
 
@@ -178,9 +178,7 @@ class PartnerCallBackController(BaseKeyboard):
                 ]
 
             case "partners":
-                print(f"partners!")
                 partners = await db.get_partners()
-                print(f"partners 2")
                 buttons = [
                     row(p.name, action="partner", company=p.name)
                     for p in partners

@@ -15,11 +15,11 @@ def register_car_handlers(bot):
         if user.admin:
             keyboard = [
                 [
-                    ("ВЫБОР АВТО 🚘", "car:car#****##"),
-                    ("ОПРОС БАЗЫ 💿", "car:set#****##"),
+                    ("ВЫБОР АВТО 🚘", "car:car#****##&"),
+                    ("ОПРОС БАЗЫ 💿", "car:set#****##&"),
                 ], [
-                    ("СТАТИСТИКА 📝", "car:stat#****##"),
-                    ("ЗАПУСК ПАРСЕРА 🔍", "car:parse#****##"),
+                    ("СТАТИСТИКА 📝", "car:stat#****##&"),
+                    ("ЗАПУСК ПАРСЕРА 🔍", "car:parse#****##&"),
                 ], [
                     ("НАСТРОЙКИ ПАРТНЁРОВ 👥", "partners:set_partners#*")
                 ]
@@ -27,9 +27,9 @@ def register_car_handlers(bot):
         else:
             keyboard = [
                 [
-                    ("ВЫБОР АВТО 🚘", "car:car#****##"),
+                    ("ВЫБОР АВТО 🚘", "car:car#****##&"),
                 ], [
-                    ("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##"),
+                    ("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##&"),
                 ]
             ]
         keyboard = CarCallbackDataController._get_keyboard(keyboard)

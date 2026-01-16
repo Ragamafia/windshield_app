@@ -13,11 +13,13 @@ def parse_callback_data(callback: str):
     try:
         _, data = callback.split(":")
         action, values = data.split("#", 1)
-        brand_start_letter, brand, model, years, letter_and_level = values.split("*") if values else []
-        letter_and_level = letter_and_level.split("##")
-        model_start_letter = letter_and_level[0] if letter_and_level[0] else ""
-        level = letter_and_level[1]
-        return action, brand_start_letter, brand, model, years, model_start_letter, level
+        brand_letter, brand, model, years, letter_level_page = values.split("*") if values else []
+        letter_and_level = letter_level_page.split("##")
+        level_and_page = letter_and_level[1].split("&")
+        model_letter = letter_and_level[0] if letter_and_level[0] else ""
+        level = level_and_page[0] if level_and_page[0] else ""
+        page = int(level_and_page[1]) if level_and_page[1] else 0
+        return action, brand_letter, brand, model, years, model_letter, level, page
 
     except ValueError:
         return None, []
@@ -31,12 +33,14 @@ class CarCallbackDataController(BaseKeyboard):
     model: str | None
     years: str | None
     level: str | None
+    page: int | None
 
     def __init__(self, callback: CallbackQuery, user: User):
         super().__init__(user)
 
         self.user = user
-        self.action, self.brand_start_letter, self.brand, self.model, self.years, self.model_start_letter, self.level = parse_callback_data(callback.data)
+        self.action, self.brand_start_letter, self.brand, self.model, self.years, self.model_start_letter, self.level, self.page = parse_callback_data(
+            callback.data)
         self.year_start = self.years.split("-")[0]
 
     async def post_init(self):
@@ -46,7 +50,7 @@ class CarCallbackDataController(BaseKeyboard):
                 self.updated = await db.update_level(self.brand, self.model, self.car.gen, self.level)
                 self.temp_level = self.level
                 if self.action == "set":
-                    self.level, self.brand_start_letter, self.brand, self.model, self.years = None, None, None, None, None
+                    self.level, self.brand_start_letter, self.brand, self.model, self.years, self.page = None, None, None, None, None, None
 
     def make_cd(self: "CallBackData", **kwargs) -> str:
         return (f"car:{kwargs.get("action", self.action) or ""}#"
@@ -55,7 +59,8 @@ class CarCallbackDataController(BaseKeyboard):
                 f"{kwargs.get("model", self.model) or ""}*"
                 f"{kwargs.get("years", self.years) or ""}*"
                 f"{kwargs.get("model_start_letter", self.model_start_letter) or ""}##"
-                f"{kwargs.get("level", self.level) or ""}")
+                f"{kwargs.get("level", self.level) or ""}&"
+                f"{kwargs.get('page', self.page) or ''}")
 
     async def text(self) -> str | None:
         if self.action == "set":
@@ -71,10 +76,10 @@ class CarCallbackDataController(BaseKeyboard):
         elif self.action == "edit":
             return await Text(self).get_edit_text()
 
-
     async def keyboard(self) -> InlineKeyboardMarkup:
         keyboard = [
             *await self._get_action_buttons(),
+            *await self._get_pagination_buttons(),
             *await self.get_main_menu_button()
         ]
         return self._get_keyboard(keyboard)
@@ -94,7 +99,7 @@ class CarCallbackDataController(BaseKeyboard):
             case "info":
                 if not self.user.admin:
                     return [
-                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##")]
+                        [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##&")]
                     ] + self.back(action="car")
                 else:
                     return self.back(action="car")
@@ -106,15 +111,16 @@ class CarCallbackDataController(BaseKeyboard):
             return self.get_brand_alphabet()
 
         if items := await self.get_items():
+            buttons = await self.get_page_items(items)
             if not self.brand:
-                return items + self.back(brand_start_letter=None)
+                return buttons + self.back(brand_start_letter=None)
             if not self.model:
                 if self.model_start_letter:
-                    return items + self.back(model_start_letter=None)
+                    return buttons + self.back(model_start_letter=None)
                 else:
-                    return items + self.back(brand=None)
+                    return buttons + self.back(brand=None)
             if not self.years:
-                return items + self.back(model=None)
+                return buttons + self.back(model=None)
 
         elif self.action in ("edit", "set"):
             if not self.level:
@@ -130,7 +136,7 @@ class CarCallbackDataController(BaseKeyboard):
             if self.user.admin:
                 buttons.append([("РЕДАКТИРОВАТЬ ⚙️", self.make_cd(action="edit"))])
             else:
-                buttons.append([("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##")])
+                buttons.append([("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##&")])
             return buttons + self.back(years=None)
 
         else:
@@ -149,7 +155,7 @@ class CarCallbackDataController(BaseKeyboard):
 
         elif not self.model:
             available_models = await db.get_avialable_models(self.brand)
-            if len(available_models) > cfg.MAX_PAGE_SIZE:
+            if len(available_models) > cfg.max_models_list:
                 if not self.model_start_letter:
                     return self.get_model_alphabet()
                 else:
@@ -174,11 +180,37 @@ class CarCallbackDataController(BaseKeyboard):
         else:
             return []
 
+    async def _get_pagination_buttons(self):
+        result = []
+        if self.action == "car" and self.brand_start_letter:
+            if items := await self.get_items():
+                if len(items) > cfg.max_models_list:
+                    pages = len(items) // cfg.max_models_list
+                    if self.page > 0:
+                        result.append(("<<<", self.make_cd(page=self.page - 1)))
+
+                    for page in range(0, pages + 1):
+                        name = f"[{page + 1}]" if page == self.page else f"{page + 1}"
+                        result.append((name, self.make_cd(page=page)))
+
+                    if pages != self.page:
+                        result.append((">>>", self.make_cd(page=self.page + 1)))
+            return [result]
+        else:
+            return []
+
+    async def get_page_items(self, items):
+        if len(items) > cfg.max_models_list:
+            page = self.page if self.page else 0
+            return items[page * cfg.max_models_list:(page + 1) * cfg.max_models_list]
+        else:
+            return items
+
     def get_brand_alphabet(self, prefix="car:car#", letters_in_row=7):
         alphabet = "abcdefghijklmnopqrstuvwxyz"
         rows = [alphabet[i:i + letters_in_row] for i in range(0, len(alphabet), letters_in_row)]
         return [
-            [(f"   {ch.upper()}   ", f"{prefix}{ch}****##") for ch in row]
+            [(f"   {ch.upper()}   ", f"{prefix}{ch}****##&") for ch in row]
             for row in rows
         ]
 
@@ -189,7 +221,7 @@ class CarCallbackDataController(BaseKeyboard):
         digit_rows = [digits[i:i + digits_in_row] for i in range(0, len(digits), digits_in_row)]
         all_rows = rows + digit_rows
         return [
-            [(f"   {ch.upper()}   ", f"{prefix}{self.brand_start_letter}*{self.brand}***{ch}##") for ch in row]
+            [(f"   {ch.upper()}   ", f"{prefix}{self.brand_start_letter}*{self.brand}***{ch}##&") for ch in row]
             for row in all_rows
         ]
 

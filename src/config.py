@@ -33,7 +33,8 @@ class Config(BaseSettings):
     admins: list[int] = [1377785914, 1015877207]
     admin_url: str = "https://t.me/TonirStark"
 
-    MAX_PAGE_SIZE: int = 12
+    max_brand_list: int = 12
+    max_models_list: int = 30
 
     min_level: int = 1
     max_level: int = 10
