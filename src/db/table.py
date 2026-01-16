@@ -44,6 +44,7 @@ class GenDBModel(Model):
     year_end = fields.IntField(max_length=50, null=True)
     gen = fields.IntField(null=True)
     restyle = fields.IntField(null=True)
+    body = fields.CharField(max_length=50, null=True)
 
     height = fields.IntField(max_length=50, null=True)
     width = fields.IntField(max_length=50, null=True)

@@ -22,17 +22,6 @@ class MainParser:
         timeout = ClientTimeout(total=cfg.proxy_check_timeout)
         return ClientSession(connector=None, timeout=timeout, headers=cfg.headers)
 
-    async def ensure_brands(self):
-        async with await self.new_session() as self.session:
-            if await self.db.no_brands():
-                if brands := await self._parse_all_brands():
-                    logger.success(f"Parse {len(brands)} brands.")
-                    task = [self.db.put_brands(brand) for brand in brands]
-                    await asyncio.gather(*task)
-
-                else:
-                    raise RuntimeError("Can not get all brands. Aborting...")
-
     async def run(self):
         async with await self.new_session() as self.session:
             while self.started:
@@ -74,6 +63,18 @@ class MainParser:
                 attempts -= 1
                 if attempts:
                     return await self.request(method, url, attempts, **kwargs)
+
+
+    async def ensure_brands(self):
+        async with await self.new_session() as self.session:
+            if await self.db.no_brands():
+                if brands := await self._parse_all_brands():
+                    logger.success(f"Parse {len(brands)} brands.")
+                    task = [self.db.put_brands(brand) for brand in brands]
+                    await asyncio.gather(*task)
+
+                else:
+                    raise RuntimeError("Can not get all brands. Aborting...")
 
     async def _download_image(self, brand, model, id):
         page = await self.get(f"{cfg.BASE_URL}/{brand}/{model}/{id}")
@@ -124,42 +125,56 @@ class MainParser:
             return
 
         results = []
-        cards = soup.find_all("div", {"class": "group-car-card"})
-        if not cards:
+
+        if cards := soup.find_all("div", {"class": "group-car-card"}):
+            for card in cards:
+                groups = card.find_all("div", {"class": "car-group"})
+                for group in groups:
+                    cars = group.find_all("a", {"class": "car-card"})
+                    for car in cars:
+                        data = {
+                            "brand": brand,
+                            "model": model,
+                            "glass_id": self._parse_glass_id(car),
+                            **self._parse_years(card),
+                            **self._parse_generation(card),
+                            "body": self._parse_body(car),
+                        }
+                        results.append(data)
+        else:
             cards = soup.find_all("div", {"class": "car-info"})
-
-        for card in cards:
-            try:
-                results.append({
-                    "brand": brand,
-                    "model": model,
-                    "glass_id": self._parse_class_id(card),
-                    **self._parse_years(card),
-                    **self._parse_generation(card),
-                    "body": self._parse_body(card),
-                })
-
-            except Exception as e:
-                print(f"Can not parse generation for {brand} {model}:\n "
-                      f"{e}\n{card}")
+            for card in cards:
+                results.append(self.get_data(brand, model, card))
 
         return results
 
-    def _parse_class_id(self, card):
+    def get_data(self, brand, model, card):
         try:
-            id = card.find("a")["href"].split("/")[-1]
+            return {
+                "brand": brand,
+                "model": model,
+                "glass_id": self._parse_glass_id(card),
+                **self._parse_years(card),
+                **self._parse_generation(card),
+                "body": self._parse_body(card),
+            }
+
+        except Exception as e:
+            print(f"Can not parse generation for {brand} {model}:\n "
+                  f"{e}\n{card}")
+
+    def _parse_glass_id(self, card):
+        try:
+            id = card["href"].split("/")[-1]
         except:
             id = card.parent.parent["href"].split("/")[-1]
-
         return id
 
     def _parse_body(self, card):
-        div = card.find("div", class_=["caption-body"])
-        try:
-            body = card.find("div", {"class": "caption-body"}).text
-            return body
-        except:
-            return None
+        div = card.find("div", class_=["name"])
+        if not div:
+            div = card.find("div", class_=["serie"])
+        return div.text
 
     def _parse_years(self, card):
         div = card.find("div", class_=["caption-year", "years"])
