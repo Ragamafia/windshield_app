@@ -4,7 +4,6 @@ import uvicorn
 
 from bot.bot import DetailerBot
 from parser.parser import MainParser
-from utils import CheckerImage
 from db.ctrl import db
 from logger import logger
 from config import cfg
@@ -21,28 +20,21 @@ async def run_server():
     server = uvicorn.Server(config)
     await server.serve()
 
-async def run_parser():
+async def run_parser(db):
     logger.info(f'Parse process...')
     workers = []
     for _ in range(cfg.WORKERS_COUNT):
-        workers.append(MainParser())
+        workers.append(MainParser(db))
     await workers[0].ensure_brands()
     await asyncio.gather(*[worker.run() for worker in workers])
 
-async def download_image():
-    logger.info(f'Download images...')
-    semaphore = asyncio.Semaphore(100)
-    cars = await db.get_images_for_check()
-    async with semaphore:
-        await asyncio.gather(*[CheckerImage().check_image(*car) for car in cars])
 
 async def main():
     await db.setup_db()
     #await db.delete_user(1377785914)  # Admin
     #await db.delete_user(8082484525)  # Admin
 
-    # await run_parser()
-    # await download_image()
+    await run_parser(db)
 
     # server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())

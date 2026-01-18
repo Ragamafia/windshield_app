@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Type
 
 from tortoise.models import Model
@@ -49,7 +50,7 @@ class DataBaseController(BaseDB):
                 await self.gen.filter(id=gen.id).update(processed=True)
                 return gen.brand, gen.model, gen.glass_id
 
-    async def get_images_for_check(self):
+    async def get_cars_for_check_images(self) -> list[list]:
         async with self.gen_lock:
             result = []
             if cars := await self.gen.filter().all():
@@ -89,10 +90,8 @@ class DataBaseController(BaseDB):
             await self.model.create(brand=brand, model=model)
             logger.info(f'Added model: {brand} {model}')
 
-    async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle):
-        if not await self.gen.filter(
-                glass_id=glass_id,
-        ).exists():
+    async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle, body):
+        if not await self.gen.filter(glass_id=glass_id).exists():
             await self.gen.create(
                 brand=brand,
                 model=model,
@@ -100,7 +99,8 @@ class DataBaseController(BaseDB):
                 year_start=year_start,
                 year_end=year_end,
                 gen=gen,
-                restyle=restyle
+                restyle=restyle,
+                body=body
             )
             logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
 
@@ -110,7 +110,7 @@ class DataBaseController(BaseDB):
                 car.height = height
                 car.width = width
                 await car.save()
-                logger.info(f'Update size for ID {glass_id}')
+                logger.info(f'Put size for {car.brand} {car.model}, ID {glass_id}')
 
     async def get_model_info(self):
         async with self.gen_lock:
@@ -151,9 +151,6 @@ class DataBaseController(BaseDB):
                 await self.gen.filter(id=car.id).update(level=True)
                 logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
             return cars[0]
-
-    async def count_models(self):
-        return await self.model.all().count()
 
     async def count_cars(self):
         return await self.gen.all().count()

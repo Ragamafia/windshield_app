@@ -21,12 +21,15 @@ class Config(BaseSettings):
 
     bot_token: str = ''
 
+    proxy: str = ''
     proxy_check_timeout: int = 60
     request_attempts: int = 10
     WORKERS_COUNT: int = 5
 
-    sql_lite_db_path: Path = Path("../data/database.db")
-    path_to_images: Path = Path("../data/images/")
+    #sql_lite_db_path: Path = Path("../data/database.db")
+    sql_lite_db_path: Path = Path("../data/database2.db")
+    #path_to_images: Path = Path("../data/images/")
+    path_to_images: Path = Path("../data/images2/")
 
     templates: Path = Path("app/templates")
 

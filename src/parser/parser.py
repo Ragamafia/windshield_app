@@ -1,11 +1,11 @@
 import asyncio
+import aiohttp
 import random
 import re
 
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 
-from db.ctrl import DataBaseController
 from config import cfg
 from logger import logger
 
@@ -13,14 +13,25 @@ from logger import logger
 class MainParser:
     session: ClientSession
 
-    def __init__(self):
+    def __init__(self, db):
         self.started = True
-        self.db = DataBaseController()
+        self.db = db
 
     @staticmethod
     async def new_session():
         timeout = ClientTimeout(total=cfg.proxy_check_timeout)
+        connector = aiohttp.TCPConnector(ssl=False)
         return ClientSession(connector=None, timeout=timeout, headers=cfg.headers)
+
+    async def ensure_brands(self):
+        async with await self.new_session() as self.session:
+            if await self.db.no_brands():
+                if brands := await self._parse_all_brands():
+                    logger.success(f"Parse {len(brands)} brands.")
+                    task = [self.db.put_brands(brand) for brand in brands]
+                    await asyncio.gather(*task)
+                else:
+                    raise RuntimeError("Can not get all brands. Aborting...")
 
     async def run(self):
         async with await self.new_session() as self.session:
@@ -32,24 +43,24 @@ class MainParser:
 
                 elif model := await self.db.get_model_to_parse():
                     if result := await self._parse_model(*model):
-                        task = [self.db.put_gen(**res) for res in result]
-                        await asyncio.gather(*task)
+                        task_put_gen = [self.db.put_gen(**res) for res in result]
+                        task_download_img = [self._download_image(res["brand"], res["model"], res["glass_id"])
+                                             for res in result]
+                        await asyncio.gather(*task_put_gen, *task_download_img)
 
                 elif gen := await self.db.get_gen_to_parse():
-                    await self._download_image(*gen)
                     if result := await self._parse_gen(*gen):
                         await self.db.put_size(*result)
 
                 else:
-                    logger.success(f"Parsing complete. Models: {await self.db.count_models()}. "
-                                   f"Total cars: {await self.db.count_cars()}.")
+                    logger.success(f"Parsing complete. Total cars: {await self.db.count_cars()}.")
                     self.started = False
 
     async def get(self, url):
-        return await self.request("GET", url)
+        return await self.request("GET", url, proxy=cfg.proxy,)
 
     async def request(self, method, url, attempts=cfg.request_attempts, **kwargs):
-        async with self.session.request(method, url, **kwargs) as response:
+        async with self.session.request(method, url,  **kwargs) as response:
             if response.status < 300:
                 try:
                     return await response.text()
@@ -64,38 +75,30 @@ class MainParser:
                 if attempts:
                     return await self.request(method, url, attempts, **kwargs)
 
-
-    async def ensure_brands(self):
-        async with await self.new_session() as self.session:
-            if await self.db.no_brands():
-                if brands := await self._parse_all_brands():
-                    logger.success(f"Parse {len(brands)} brands.")
-                    task = [self.db.put_brands(brand) for brand in brands]
-                    await asyncio.gather(*task)
-
-                else:
-                    raise RuntimeError("Can not get all brands. Aborting...")
-
-    async def _download_image(self, brand, model, id):
-        page = await self.get(f"{cfg.BASE_URL}/{brand}/{model}/{id}")
+    async def _get_page(self, url: str):
+        page = await self.get(url)
         try:
-            soup = BeautifulSoup(page, "html.parser")
+            return BeautifulSoup(page, "html.parser")
+
         except TypeError as e:
-            print(f'ERROR! {e}')
+            print(f'ERROR! {e}\n{page}')
             return
 
-        image = soup.find('img', {"class": "fluid"})
-        image = await self.get(image['src'])
-
+    async def _download_image(self, brand, model, id):
         save_dir = cfg.path_to_images / brand / model / id
         save_dir.mkdir(parents=True, exist_ok=True)
         image_path = save_dir / "img.jpg"
+
+        url = f"{cfg.BASE_URL}/{brand}/{model}/{id}"
+        soup = await self._get_page(url)
+        image = soup.find('img', {"class": "fluid"})
+        image = await self.get(image['src'])
 
         with open(image_path, 'wb') as file:
             file.write(image)
             logger.success(f'Save new image: {brand} {model} {id}')
 
-    async def _parse_all_brands(self):
+    async def _parse_all_brands(self) -> list:
         home = await self.get(cfg.HOME_URL)
         soup = BeautifulSoup(home, "html.parser")
         container = soup.find("div", class_="marks")
@@ -104,25 +107,16 @@ class MainParser:
         return brands
 
     async def _parse_brand(self, brand) -> list:
-        page = await self.get(f"{cfg.BASE_URL}/{brand}")
-        try:
-            soup = BeautifulSoup(page, "html.parser")
-        except TypeError as e:
-            print(f'ERROR! {e}')
-            return
-
+        url = f"{cfg.BASE_URL}/{brand}"
+        soup = await self._get_page(url)
         container = soup.find("div", class_="marks")
         data = container.find_all('a', href=True)
         models = [i['href'].split('/', 4)[4] for i in data]
         return models
 
     async def _parse_model(self, brand, model) -> list[dict]:
-        page = await self.get(f"{cfg.BASE_URL}/{brand}/{model}")
-        try:
-            soup = BeautifulSoup(page, "html.parser")
-        except TypeError as e:
-            print(f'ERROR! {e}')
-            return
+        url = f"{cfg.BASE_URL}/{brand}/{model}"
+        soup = await self._get_page(url)
 
         results = []
 
@@ -132,15 +126,7 @@ class MainParser:
                 for group in groups:
                     cars = group.find_all("a", {"class": "car-card"})
                     for car in cars:
-                        data = {
-                            "brand": brand,
-                            "model": model,
-                            "glass_id": self._parse_glass_id(car),
-                            **self._parse_years(card),
-                            **self._parse_generation(card),
-                            "body": self._parse_body(car),
-                        }
-                        results.append(data)
+                        results.append(self.get_data(brand, model, card, car))
         else:
             cards = soup.find_all("div", {"class": "car-info"})
             for card in cards:
@@ -148,7 +134,7 @@ class MainParser:
 
         return results
 
-    def get_data(self, brand, model, card):
+    def get_data(self, brand, model, card, car=None):
         try:
             return {
                 "brand": brand,
@@ -169,12 +155,6 @@ class MainParser:
         except:
             id = card.parent.parent["href"].split("/")[-1]
         return id
-
-    def _parse_body(self, card):
-        div = card.find("div", class_=["name"])
-        if not div:
-            div = card.find("div", class_=["serie"])
-        return div.text
 
     def _parse_years(self, card):
         div = card.find("div", class_=["caption-year", "years"])
@@ -214,14 +194,15 @@ class MainParser:
             "restyle": restyle
         }
 
+    def _parse_body(self, card):
+        div = card.find("div", class_=["name"])
+        if not div:
+            div = card.find("div", class_=["serie"])
+        return div.text
+
     async def _parse_gen(self, brand, model, glass_id):
         url = f"{cfg.BASE_URL}/{brand}/{model}/{glass_id}?filter=front"
-        page = await self.get(url)
-        try:
-            soup = BeautifulSoup(page, "html.parser")
-        except TypeError as e:
-            print(f'ERROR! {e}')
-            return
+        soup = await self._get_page(url)
 
         if 'не найден' in soup.text:
             logger.warning(f'No size for: {brand} {model} {glass_id}')
