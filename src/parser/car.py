@@ -1,37 +1,17 @@
 import asyncio
-import aiohttp
-import random
 import re
 
-from aiohttp import ClientSession, ClientTimeout
-from bs4 import BeautifulSoup
-
+from parser.main import MainParser
 from config import cfg
 from logger import logger
 
 
-class MainParser:
-    session: ClientSession
+class CarParser(MainParser):
 
     def __init__(self, db):
-        self.started = True
+        super().__init__()
         self.db = db
-
-    @staticmethod
-    async def new_session():
-        timeout = ClientTimeout(total=cfg.proxy_check_timeout)
-        connector = aiohttp.TCPConnector(ssl=False)
-        return ClientSession(connector=None, timeout=timeout, headers=cfg.headers)
-
-    async def ensure_brands(self):
-        async with await self.new_session() as self.session:
-            if await self.db.no_brands():
-                if brands := await self._parse_all_brands():
-                    logger.success(f"Parse {len(brands)} brands.")
-                    task = [self.db.put_brands(brand) for brand in brands]
-                    await asyncio.gather(*task)
-                else:
-                    raise RuntimeError("Can not get all brands. Aborting...")
+        self.started = True
 
     async def run(self):
         async with await self.new_session() as self.session:
@@ -43,46 +23,28 @@ class MainParser:
 
                 elif model := await self.db.get_model_to_parse():
                     if result := await self._parse_model(*model):
-                        task_put_gen = [self.db.put_gen(**res) for res in result]
-                        task_download_img = [self._download_image(res["brand"], res["model"], res["glass_id"])
-                                             for res in result]
-                        await asyncio.gather(*task_put_gen, *task_download_img)
+                        sizes = [await self._parse_gen(*model, id["glass_id"]) for id in result]
 
-                elif gen := await self.db.get_gen_to_parse():
-                    if result := await self._parse_gen(*gen):
-                        await self.db.put_size(*result)
+                        task_put_gen = [self.db.put_gen(**res) for res in result]
+                        task_download_image = [self._download_image(*model, id["glass_id"]) for id in result]
+                        await asyncio.gather(*task_put_gen, *task_download_image)
+                        task_put_size = [self.db.put_size(*size) for size in sizes]
+                        await asyncio.gather(*task_put_size)
 
                 else:
                     logger.success(f"Parsing complete. Total cars: {await self.db.count_cars()}.")
                     self.started = False
 
-    async def get(self, url):
-        return await self.request("GET", url, proxy=cfg.proxy,)
-
-    async def request(self, method, url, attempts=cfg.request_attempts, **kwargs):
-        async with self.session.request(method, url,  **kwargs) as response:
-            if response.status < 300:
-                try:
-                    return await response.text()
-                except:
-                    return await response.read()
-            elif response.status == 429:
-                await asyncio.sleep(random.randint(30, 60))
-            elif response.status == 404:
-                return
+    async def get_new_brands(self):
+        async with await self.new_session() as self.session:
+            current_brands = await self.db.get_brands()
+            len_current_brands = len(current_brands) if current_brands else 0
+            if brands := await self._parse_all_brands():
+                task = [self.db.put_brands(brand) for brand in brands]
+                await asyncio.gather(*task)
+                logger.success(f"Receive {len(brands) - len_current_brands} new brands.")
             else:
-                attempts -= 1
-                if attempts:
-                    return await self.request(method, url, attempts, **kwargs)
-
-    async def _get_page(self, url: str):
-        page = await self.get(url)
-        try:
-            return BeautifulSoup(page, "html.parser")
-
-        except TypeError as e:
-            print(f'ERROR! {e}\n{page}')
-            return
+                raise RuntimeError("Can not get all brands. Aborting...")
 
     async def _download_image(self, brand, model, id):
         save_dir = cfg.path_to_images / brand / model / id
@@ -91,16 +53,18 @@ class MainParser:
 
         url = f"{cfg.BASE_URL}/{brand}/{model}/{id}"
         soup = await self._get_page(url)
-        image = soup.find('img', {"class": "fluid"})
-        image = await self.get(image['src'])
-
-        with open(image_path, 'wb') as file:
-            file.write(image)
-            logger.success(f'Save new image: {brand} {model} {id}')
+        try:
+            image = soup.find('img', {"class": "fluid"})
+            image = await self.get(image['src'])
+            with open(image_path, 'wb') as file:
+                file.write(image)
+                await self.db.images_received(id)
+                logger.success(f'Save new image: {brand} {model} {id}')
+        except:
+            print(f"Can not find image {brand} {model} {id}")
 
     async def _parse_all_brands(self) -> list:
-        home = await self.get(cfg.HOME_URL)
-        soup = BeautifulSoup(home, "html.parser")
+        soup = await self._get_page(cfg.HOME_URL)
         container = soup.find("div", class_="marks")
         data = container.find_all('a', href=True)
         brands = [i['href'].split('/', 3)[3] for i in data]
@@ -126,37 +90,38 @@ class MainParser:
                 for group in groups:
                     cars = group.find_all("a", {"class": "car-card"})
                     for car in cars:
-                        results.append(self.get_data(brand, model, card, car))
+                        results.append(await self.get_data(brand, model, card, car))
         else:
             cards = soup.find_all("div", {"class": "car-info"})
             for card in cards:
-                results.append(self.get_data(brand, model, card))
+                results.append(await self.get_data(brand, model, card))
 
         return results
 
-    def get_data(self, brand, model, card, car=None):
+    async def get_data(self, brand, model, card, car=None):
         try:
             return {
                 "brand": brand,
                 "model": model,
-                "glass_id": self._parse_glass_id(card),
-                **self._parse_years(card),
-                **self._parse_generation(card),
-                "body": self._parse_body(card),
+                "glass_id": await self._parse_glass_id(card),
+                ** await self._parse_years(card),
+                ** await self._parse_generation(card),
+                "body": await self._parse_body(card),
             }
 
         except Exception as e:
-            print(f"Can not parse generation for {brand} {model}:\n "
-                  f"{e}\n{card}")
+            print(f"Can not parse model for {brand} {model}:\n "
+                  f"ERROR: {e}\n{card}")
 
-    def _parse_glass_id(self, card):
+    async def _parse_glass_id(self, card):
         try:
-            id = card["href"].split("/")[-1]
+            tag = card.find('a', class_='car-card')
+            id = tag["href"].split("/")[-1]
         except:
             id = card.parent.parent["href"].split("/")[-1]
         return id
 
-    def _parse_years(self, card):
+    async def _parse_years(self, card):
         div = card.find("div", class_=["caption-year", "years"])
         years = div.text.split()
 
@@ -174,7 +139,7 @@ class MainParser:
             "year_end": end,
         }
 
-    def _parse_generation(self, card):
+    async def _parse_generation(self, card):
         span = card.find("span", {"class": "caption-generation"})
         if not span:
             span = card.find("div", {"class": "gens"})
@@ -185,28 +150,33 @@ class MainParser:
             restyle = 0
 
         gen = span.text.strip().split(',')
+        print(f"GEN {gen}")
         for i in gen[0].split():
             if i.isdigit():
                 gen = int(i)
-
+            else:
+                for a in i:
+                    if a.isdigit():
+                        gen = int(a)
         return {
             "gen": gen,
             "restyle": restyle
         }
 
-    def _parse_body(self, card):
+    async def _parse_body(self, card):
         div = card.find("div", class_=["name"])
         if not div:
             div = card.find("div", class_=["serie"])
-        return div.text
+
+        return await self.db.get_body_id(div.text)
 
     async def _parse_gen(self, brand, model, glass_id):
         url = f"{cfg.BASE_URL}/{brand}/{model}/{glass_id}?filter=front"
         soup = await self._get_page(url)
 
         if 'не найден' in soup.text:
-            logger.warning(f'No size for: {brand} {model} {glass_id}')
-            return None
+            height, width = None, None
+
         else:
             info = soup.find("div", {"class": "tech-info"})
             try:
@@ -216,11 +186,10 @@ class MainParser:
                 params = {k.split(" ")[0]: int(v) for k, v in params if "(мм)" in k}
                 # отфильтруем пары которые не содержат миллиметров в имени
                 height, width = params["высота"], params["ширина"]
-
             except:
                 height, width = await self.parse_second_front(info)
 
-            return glass_id, height, width
+        return glass_id, height, width
 
     async def parse_second_front(self, info):
         res = []

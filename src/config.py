@@ -24,7 +24,7 @@ class Config(BaseSettings):
     proxy: str = ''
     proxy_check_timeout: int = 60
     request_attempts: int = 10
-    WORKERS_COUNT: int = 5
+    WORKERS_COUNT: int = 3
 
     #sql_lite_db_path: Path = Path("../data/database.db")
     sql_lite_db_path: Path = Path("../data/database2.db")

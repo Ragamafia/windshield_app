@@ -32,9 +32,10 @@ class ModelDBModel(Model):
     model = fields.CharField(max_length=50)
 
 
-class GenDBModel(Model):
-    processed = fields.BooleanField(default=False)
-    level = fields.BooleanField(default=False)  # получен difficulty level
+class CarDBModel(Model):
+    size_received = fields.BooleanField(default=False)
+    img_received = fields.BooleanField(default=False)
+    level_received = fields.BooleanField(default=False)  # получен difficulty level
 
     id = fields.UUIDField(primary_key=True)
     glass_id = fields.CharField(max_length=50)
@@ -44,8 +45,13 @@ class GenDBModel(Model):
     year_end = fields.IntField(max_length=50, null=True)
     gen = fields.IntField(null=True)
     restyle = fields.IntField(null=True)
-    body = fields.CharField(max_length=50, null=True)
+    body = fields.IntField(max_length=50, null=True)
 
     height = fields.IntField(max_length=50, null=True)
     width = fields.IntField(max_length=50, null=True)
     difficulty = fields.IntField(max_length=50, null=True)
+
+
+class BodyDBModel(Model):
+    id = fields.IntField(pk=True)
+    body = fields.CharField(max_length=50, null=True)

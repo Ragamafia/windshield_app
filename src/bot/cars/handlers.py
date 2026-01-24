@@ -14,23 +14,14 @@ def register_car_handlers(bot):
     async def start_handler(message: Message | CallbackQuery, user: User):
         if user.admin:
             keyboard = [
-                [
-                    ("ВЫБОР АВТО 🚘", "car:car#****##&"),
-                    ("ОПРОС БАЗЫ 💿", "car:set#****##&"),
-                ], [
-                    ("СТАТИСТИКА 📝", "car:stat#****##&"),
-                    ("ЗАПУСК ПАРСЕРА 🔍", "car:parse#****##&"),
-                ], [
-                    ("НАСТРОЙКИ ПАРТНЁРОВ 👥", "partners:set_partners#*")
-                ]
+                [("ВЫБОР АВТО 🚘", "car:car#*****##&")],
+                [("НАСТРОЙКИ БАЗЫ 🔧", "car:set#*****##&")],
+                [("НАСТРОЙКИ ПАРТНЁРОВ 👥", "partners:set_partners#*")]
             ]
         else:
             keyboard = [
-                [
-                    ("ВЫБОР АВТО 🚘", "car:car#****##&"),
-                ], [
-                    ("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#****##&"),
-                ]
+                [("ВЫБОР АВТО 🚘", "car:car#*****##&")],
+                [("СВЯЗАТЬСЯ С МАСТЕРОМ 📱", "car:contact#*****##&")]
             ]
         keyboard = CarCallbackDataController._get_keyboard(keyboard)
         msg = message if isinstance(message, Message) else message.message

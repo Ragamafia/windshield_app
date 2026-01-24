@@ -3,7 +3,7 @@ import asyncio
 import uvicorn
 
 from bot.bot import DetailerBot
-from parser.parser import MainParser
+from parser.car import CarParser
 from db.ctrl import db
 from logger import logger
 from config import cfg
@@ -24,8 +24,8 @@ async def run_parser(db):
     logger.info(f'Parse process...')
     workers = []
     for _ in range(cfg.WORKERS_COUNT):
-        workers.append(MainParser(db))
-    await workers[0].ensure_brands()
+        workers.append(CarParser(db))
+    await workers[0].get_new_brands()
     await asyncio.gather(*[worker.run() for worker in workers])
 
 

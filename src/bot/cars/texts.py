@@ -34,7 +34,7 @@ class Text():
             return ("Сохранено ✅\n"
                     f"{self.data.updated.model.upper()}, {self.data.updated.gen} поколение.\n"
                     f"{self.data.updated.year_start}-{self.data.updated.year_end}\n"
-                    f"Уровень сложности - {self.data.temp_level}")
+                    f"Уровень сложности - {self.data.updated.difficulty}")
 
     async def get_select_car_text(self):
         if self.data.action == "car" and not self.data.brand_start_letter:
@@ -59,6 +59,11 @@ class Text():
 
         elif self.data.action == "car" and not self.data.years:
             return f"Выберите года выпуска для {self.data.brand.capitalize()} {self.data.model.capitalize()}:"
+
+        elif self.data.action == "car" and not self.data.body:
+            return (f"Выберите тип кузова для\n{self.data.brand.upper()} {self.data.model.upper()}\n"
+                    f"{self.data.years} года")
+
         else:
             return (
                 f"{self.data.brand.upper()} {self.data.model.upper()}\n"

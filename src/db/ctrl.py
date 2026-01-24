@@ -1,121 +1,139 @@
 import asyncio
-import time
 from typing import Type
+from collections import defaultdict
 
 from tortoise.models import Model
 
 from db.base import BaseDB
-from db.table import BrandDBModel, ModelDBModel, GenDBModel, Users, Partner
+from db.table import BrandDBModel, ModelDBModel, CarDBModel, Users, Partner, BodyDBModel
 from logger import logger
 from config import cfg
 
 
 class DataBaseController(BaseDB):
-    brand: Type[Model] = BrandDBModel
-    model: Type[Model] = ModelDBModel
-    gen: Type[Model] = GenDBModel
+    brands: Type[Model] = BrandDBModel
+    models: Type[Model] = ModelDBModel
+    cars: Type[Model] = CarDBModel
     users: Type[Model] = Users
     partner: Type[Model] = Partner
+    body: Type[Model] = BodyDBModel
 
     brand_lock: asyncio.Lock()
     model_lock: asyncio.Lock()
-    gen_lock: asyncio.Lock()
+    car_lock: asyncio.Lock()
 
     def __init__(self):
         super().__init__()
         self.brand_lock = asyncio.Lock()
         self.model_lock = asyncio.Lock()
-        self.gen_lock = asyncio.Lock()
-
-    async def no_brands(self):
-        empty = await self.brand.first()
-        if empty is None:
-            return True
+        self.car_lock = asyncio.Lock()
 
     async def get_brand_to_parse(self):
         async with self.brand_lock:
-            if brand := await self.brand.filter(processed=False).first():
-                await self.brand.filter(id=brand.id).update(processed=True)
+            if brand := await self.brands.filter(processed=False).first():
+                await self.brands.filter(id=brand.id).update(processed=True)
                 return brand.brand
 
     async def get_model_to_parse(self):
         async with self.model_lock:
-            if model := await self.model.filter(processed=False).first():
-                await self.model.filter(id=model.id).update(processed=True)
+            if model := await self.models.filter(processed=False).first():
+                await self.models.filter(id=model.id).update(processed=True)
                 return model.brand, model.model
 
-    async def get_gen_to_parse(self):
-        async with self.gen_lock:
-            if gen := await self.gen.filter(processed=False).first():
-                await self.gen.filter(id=gen.id).update(processed=True)
-                return gen.brand, gen.model, gen.glass_id
+    async def get_group_all_cars(self):
+            if all_cars := await self.cars.filter().all():
+                groups = defaultdict(list)
+                for models in all_cars:
+                    key = (models.brand, models.model)
+                    groups[key].append(models)
 
-    async def get_cars_for_check_images(self) -> list[list]:
-        async with self.gen_lock:
+                return list(groups.values())
+
+    async def get_cars_without_image(self, brand, model) -> list[list]:
+        async with self.car_lock:
             result = []
-            if cars := await self.gen.filter().all():
-                for car in cars:
+            if models := await self.cars.filter(brand=brand, model=model, img_received=False).all():
+                for car in models:
                     result.append([car.brand, car.model, car.glass_id])
+
             return result
+
+    async def images_received(self, id):
+        await self.cars.filter(glass_id=id).update(img_received=True)
 
     async def get_brands(self, letter: str = None):
         if letter:
-            return await self.brand.filter(brand__startswith=letter).all()
+            return await self.brands.filter(brand__startswith=letter).all()
         else:
-            return await self.brand.filter().all()
+            return await self.brands.filter().all()
 
     async def get_models(self, brand):
-        return await self.model.filter(brand=brand)
+        return await self.models.filter(brand=brand)
+
+    async def get_gens(self, brand, model):
+        return await self.cars.filter(brand=brand, model=model)
+
+    async def get_car(self, brand, model, year_start, body):
+        return await self.cars.filter(brand=brand, model=model, year_start=year_start, body=body).first()
+
+    async def get_body(self, brand, model, year_start):
+        return await self.cars.filter(brand=brand, model=model, year_start=year_start).all()
+
+    async def get_body_id(self, body):
+        if id := await self.body.filter(body=body).first():
+            return id.id
+        else:
+            id = await self.body.create(body=body)
+            return id.id
 
     async def get_avialable_models(self, brand, model_start_letter: str = None):
         if model_start_letter:
-            return await self.gen.filter(brand=brand, model__startswith=model_start_letter).values_list("model", flat=True)
+            return await self.cars.filter(brand=brand, model__startswith=model_start_letter).values_list("model", flat=True)
         else:
-            return await self.gen.filter(brand=brand).values_list("model", flat=True)
-
-    async def get_gens(self, brand, model):
-        return await self.gen.filter(brand=brand, model=model)
-
-    async def get_car(self, brand, model, year_start):
-        return await self.gen.filter(brand=brand, model=model, year_start=year_start).first()
+            return await self.cars.filter(brand=brand).values_list("model", flat=True)
 
 
     async def put_brands(self, brand):
-        if not await self.brand.filter(brand=brand).exists():
-            await self.brand.create(brand=brand)
+        if not await self.brands.filter(brand=brand).exists():
+            await self.brands.create(brand=brand)
             logger.info(f'Create brand: {brand}')
 
     async def put_model(self, brand, model):
-        if not await self.model.filter(brand=brand, model=model).exists():
-            await self.model.create(brand=brand, model=model)
+        if not await self.models.filter(brand=brand, model=model).exists():
+            await self.models.create(brand=brand, model=model)
             logger.info(f'Added model: {brand} {model}')
 
     async def put_gen(self, brand, model, glass_id, year_start, year_end, gen, restyle, body):
-        if not await self.gen.filter(glass_id=glass_id).exists():
-            await self.gen.create(
-                brand=brand,
-                model=model,
-                glass_id=glass_id,
-                year_start=year_start,
-                year_end=year_end,
-                gen=gen,
-                restyle=restyle,
-                body=body
-            )
-            logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
+        async with self.car_lock:
+            if not await self.cars.filter(glass_id=glass_id).exists():
+                await self.cars.create(
+                    brand=brand,
+                    model=model,
+                    glass_id=glass_id,
+                    year_start=year_start,
+                    year_end=year_end,
+                    gen=gen,
+                    restyle=restyle,
+                    body=body
+                )
+                logger.info(f'Added gen: {brand} {model} {year_start}-{year_end}. ID {glass_id}')
 
     async def put_size(self, glass_id, height, width):
-        if car := await self.gen.filter(glass_id=glass_id).first():
-            if not car.height:
-                car.height = height
-                car.width = width
-                await car.save()
-                logger.info(f'Put size for {car.brand} {car.model}, ID {glass_id}')
+        async with self.car_lock:
+            if car := await self.cars.filter(glass_id=glass_id).first():
+                if height is not None:
+                    car.height = height
+                    car.width = width
+                    await car.save()
+                    await self.cars.filter(id=car.id).update(size_received=True)
+                    logger.info(f'Put size for {car.brand} {car.model}, ID {glass_id}')
+                else:
+                    logger.warning(f'No size for {car.brand} {car.model}, ID {glass_id}')
 
     async def get_model_info(self):
-        async with self.gen_lock:
-            if car := await self.gen.filter(level=False, year_start__gte=cfg.year_start_search).first():
-                gens = await self.gen.filter(level=False, brand=car.brand, model=car.model, year_start__gte=cfg.year_start_search).order_by("year_start")
+        async with self.car_lock:
+            if car := await self.cars.filter(level=False, year_start__gte=cfg.year_start_search).first():
+                gens = await self.cars.filter(level=False, brand=car.brand, model=car.model, year_start__gte=cfg.year_start_search).order_by("year_start")
                 groups = {}
                 for gen in gens:
                     if gen.gen not in groups:
@@ -143,20 +161,26 @@ class DataBaseController(BaseDB):
                 }
                 return result
 
-    async def update_level(self, brand, model, gen, level):
-        if cars := await self.gen.filter(brand=brand, model=model, gen=gen).all():
-            for car in cars:
-                car.difficulty = level
-                await car.save()
-                await self.gen.filter(id=car.id).update(level=True)
-                logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
-            return cars[0]
+    async def update_level(self, glass_id, level):
+        if car := await self.cars.filter(glass_id=glass_id).first():
+            car.difficulty = level
+            await car.save()
+            await self.cars.filter(id=car.id).update(level_recived=True)
+            logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
+            return car
+        # if cars := await self.cars.filter(brand=brand, model=model, gen=gen).all():
+        #     for car in cars:
+        #         car.difficulty = level
+        #         await car.save()
+        #         await self.cars.filter(id=car.id).update(level=True)
+        #         logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
+        #     return cars[0]
 
     async def count_cars(self):
-        return await self.gen.all().count()
+        return await self.cars.all().count()
 
     async def count_processed_level(self, level: bool):
-        return await self.gen.filter(level=level).all().count()
+        return await self.cars.filter(level=level).all().count()
 
 
     async def create_user(self, user_id, username, first_name, admin: bool, is_manager: bool):
