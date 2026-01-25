@@ -11,7 +11,6 @@ def parse_callback_data(callback: str):
         handler, data = callback.split(":")
         action, values = data.split("#")
         company, user_id = values.split("*")
-        print(action, company, user_id)
         return action, company, user_id
 
     except ValueError:

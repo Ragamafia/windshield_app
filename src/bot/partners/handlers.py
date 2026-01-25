@@ -32,8 +32,12 @@ def register_partners_handlers(bot):
                                  f"Партнёр: {name}\n"
                                  f"Дисконт: {discount}%")
             await state.clear()
+
         except Exception:
             await message.answer(f"Пожалуйста, введите действительное число в процентах")
+            await state.set_state(EditPartner.discount)
+
+        if discount.isdigit():
             await post_update(message)
 
     @bot.router.callback_query(F.data.startswith("partners:edit_discount"))
@@ -51,7 +55,6 @@ def register_partners_handlers(bot):
         keyboard = await data.keyboard()
         await callback.message.answer(text, reply_markup=keyboard)
 
-
     async def post_update(msg):
         fake_callback = CallbackQuery(id=str(msg.message_id),
                                       chat_instance=str(msg.chat.id),
@@ -60,5 +63,5 @@ def register_partners_handlers(bot):
                                       )
         data = PartnerCallbackController(fake_callback, msg.from_user)
         text = await data.text()
-        #keyboard = await data.keyboard()
-        await msg.answer(text)
+        keyboard = await data.keyboard()
+        await msg.answer(text, reply_markup=keyboard)
