@@ -10,35 +10,10 @@ class Text():
     def __init__(self, data):
         self.data = data
 
-    async def get_set_text(self):
-        if not self.data.brand and not self.data.model:
-            if no_difficulty := await db.get_model_info():
-                self.data.brand = no_difficulty["brand"]
-                self.data.model = no_difficulty["model"]
-                self.data.years = no_difficulty["groups"][0]["years"]
-                self.data.year_start = self.data.years.split("-")[0]
-                return await self.data.text()
-            else:
-                return "All done. Drink some beer, dude)"
-        else:
-            return await self.get_edit_text()
-
-    async def get_edit_text(self):
-        if not self.data.level:
-            return (
-                f"Установите уровень сложности\n"
-                f"{self.data.brand.upper()} {self.data.model.upper()},\n"
-                f"Года выпуска: {self.data.years}"
-            )
-        else:
-            return ("Сохранено ✅\n"
-                    f"{self.data.updated.model.upper()}, {self.data.updated.gen} поколение.\n"
-                    f"{self.data.updated.year_start}-{self.data.updated.year_end}\n"
-                    f"Уровень сложности - {self.data.updated.difficulty}")
-
     async def get_select_car_text(self):
         if self.data.action == "car" and not self.data.brand_start_letter:
             return "Выберите букву:"
+
         elif self.data.action == "car" and not self.data.brand:
             if brands := await db.get_brands(self.data.brand_start_letter):
                 return "Выберите бренд:"
@@ -48,6 +23,7 @@ class Text():
         elif self.data.action == "car" and not self.data.model:
             models = await db.get_avialable_models(self.data.brand)
             if len(models) > cfg.max_brand_list:
+
                 if not self.data.model_start_letter:
                     return f"Выберите букву для модели {self.data.brand.upper()}:"
                 elif models := await db.get_avialable_models(self.data.brand, self.data.model_start_letter):
@@ -70,6 +46,19 @@ class Text():
                 f"{self.data.car.gen} поколение, {self.data.years}\n"
                 f"Выберите действие:"
             )
+
+    async def get_edit_text(self):
+        if not self.data.level:
+            return (
+                f"Установите уровень сложности\n"
+                f"{self.data.brand.upper()} {self.data.model.upper()},\n"
+                f"Года выпуска: {self.data.years}"
+            )
+        else:
+            return ("Сохранено ✅\n"
+                    f"{self.data.updated.model.upper()}, {self.data.updated.gen} поколение.\n"
+                    f"{self.data.updated.year_start}-{self.data.updated.year_end}\n"
+                    f"Уровень сложности - {self.data.updated.difficulty}")
 
     async def get_result_text(self):
         user = await db.get_user(self.data.user.user_id)
@@ -123,16 +112,3 @@ class Text():
 
         logger.info(f"User {self.data.user.first_name}. Request car info {self.data.brand.upper()} {self.data.model.upper()} {self.data.years}")
         return info
-
-    async def get_stat_text(self):
-        logger.info(
-            f"Request statistic. User {self.data.user.first_name}. "
-            f"Processed - {await db.count_processed_level(level=True)}. "
-            f"Left - {await db.count_processed_level(level=False)}"
-        )
-        return (f"Обработано автомобилей - {await db.count_processed_level(level=True)}\n"
-                f"Осталось - {await db.count_processed_level(level=False)}")
-
-    async def get_parse_text(self):
-        logger.info(f"User {self.data.user.first_name}. Start parse")
-        return "Sorry, not implemented"

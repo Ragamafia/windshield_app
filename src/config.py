@@ -33,7 +33,7 @@ class Config(BaseSettings):
 
     templates: Path = Path("app/templates")
 
-    admins: list[int] = [1377785914, 1015877207]
+    admins: list[int] = [1377785914, 1015877207] #1377785914,
     admin_url: str = "https://t.me/TonirStark"
 
     max_brand_list: int = 12

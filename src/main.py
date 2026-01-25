@@ -31,10 +31,10 @@ async def run_parser(db):
 
 async def main():
     await db.setup_db()
-    #await db.delete_user(1377785914)  # Admin
+    await db.delete_user(1377785914)  # Admin
     #await db.delete_user(8082484525)  # Admin
 
-    await run_parser(db)
+    #await run_parser(db)
 
     # server_task = asyncio.create_task(run_server())
     bot_task = asyncio.create_task(run_bot())

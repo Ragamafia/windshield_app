@@ -1,11 +1,9 @@
-import pytz
-
 from aiogram.types import InlineKeyboardMarkup, CallbackQuery
 
+from bot.partners.text import Text
 from bot.common import BaseKeyboard
 from models import User
 from db.ctrl import db
-from config import cfg
 
 
 def parse_callback_data(callback: str):
@@ -13,13 +11,14 @@ def parse_callback_data(callback: str):
         handler, data = callback.split(":")
         action, values = data.split("#")
         company, user_id = values.split("*")
+        print(action, company, user_id)
         return action, company, user_id
 
     except ValueError:
         return None, []
 
 
-class PartnerCallBackController(BaseKeyboard):
+class PartnerCallbackController(BaseKeyboard):
     action: str | None
     company: str | None
     user_id: int | None
@@ -38,118 +37,29 @@ class PartnerCallBackController(BaseKeyboard):
         if self.action == "set_partners":
             return "НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ"
         elif self.action == "users":
-            return "ПОЛЬЗОВАТЕЛИ:"
+            return "ВСЕ ПОЛЬЗОВАТЕЛИ:"
         elif self.action == "company_add_manager":
             return "В какую компанию добавить сотрудника?"
-        elif self.action == "remove":
+        elif self.action == "remove_company":
             return "ВЫ УВЕРЕНЫ?"
         elif self.action == "user":
-            return await self.get_user_info_text()
+            return await Text(self).get_user_info_text()
         elif self.action == "manager":
-            return await self.get_manager_info_text()
+            return await Text(self).get_manager_info_text()
         elif self.action == "managers":
-            return await self.get_managers_text()
+            return await Text(self).get_all_managers_text()
         elif self.action == "partner":
-            return await self.get_partner_info_text()
+            return await Text(self).get_partner_info_text()
         elif self.action == "partners":
-            return await self.get_partners_text()
+            return await Text(self).get_partners_text()
         elif self.action == "company_managers":
-            return await self.get_company_managers_text()
+            return await Text(self).get_company_managers_text()
         elif self.action == "update":
-            return await self.pin_manager_text()
-        elif self.action == "remove_company":
-            return await self.unpin_manager_text()
-        elif self.action == "remove_partner":
-            return await self.partner_delete()
-
-    async def get_managers_text(self):
-        if managers := await db.get_managers():
-            return "МЕНЕДЖЕРЫ:"
-        else:
-            return "Список менеджеров пуст 🤷‍♂️"
-
-    async def get_partners_text(self):
-        if partners := await db.get_partners():
-            return "ПАРТНЕРЫ:"
-        else:
-            return "Список партнеров пуст 🤷‍♂️"
-
-    async def get_partner_info_text(self):
-        partner = await db.get_partner(self.company)
-        return (
-            f'Партнёр: "{partner.name}"\n'
-            f"Текущая скидка: {partner.discount}%\n\n"
-            f"Выберите действие:"
-        )
-
-    async def get_company_managers_text(self):
-        if partner := await db.get_partner(self.company):
-            if managers := await db.get_users_by_id(partner.partner_id):
-                return "МЕНЕДЖЕРЫ:"
-            else:
-                return "Список менеджеров пуст 🤷‍♂️"
-
-    async def get_manager_info_text(self):
-        manager = await db.get_user(self.user_id)
-        if manager.company_id:
-            company = await db.get_partner_by_id(manager.company_id)
-            return (
-                f"Менеджер: {manager.first_name}\n"
-                f"Компания: {company.name}\n"
-                f"Дисконт: {company.discount}%\n\n"
-                f"Выберите действие:"
-            )
-        else:
-            return (
-                f"Менеджер: {manager.first_name}\n"
-                f"Компания не назначена.\n\n"
-                f"Выберите действие:"
-            )
-
-    async def get_user_info_text(self):
-        user = await db.get_user(self.user_id)
-        if user.admin:
-            status = "АДМИНИСТРАТОР"
-        else:
-            status = "МЕНЕДЖЕР" if user.is_manager else "ПОЛЬЗОВАТЕЛЬ"
-
-        if company_ok := await db.get_partner_by_id(user.company_id):
-            name = company_ok.name
-        else:
-            name = "Нет"
-        discount = company_ok.discount if company_ok else "Общие условия - 0"
-        tz = pytz.timezone(cfg.irkutsk_tz)
-        create_at = user.created_at.astimezone(tz)
-        return (
-            f"<code>"
-            f"Пользователь: {user.first_name}\n\n"
-            f"ID: {user.user_id}\n"
-            f"Username: {user.username}\n\n"
-            f"Статус: {status}\n"
-            f"Компания: {name}\n"
-            f"Дисконт: {discount}%\n\n"
-            f"Создан: {create_at.strftime("%d.%m.%Y %H:%M")}\n\n"
-            f"</code>"
-        )
-
-    async def pin_manager_text(self):
-        if partner := await db.get_partner(self.company):
-            await db.update_user(self.user_id, partner.partner_id)
-            return (
-                f"Менеджер добавлен в компанию {partner.name}\n"
-            )
-
-    async def unpin_manager_text(self):
-            await db.update_user(self.user_id, None)
-            return "Менеджер отвязан"
-
-    async def partner_delete(self):
-        partner = await db.get_partner(self.company)
-        if managers := await db.get_users_by_id(partner.partner_id):
-            for manager in managers:
-                await db.update_user(manager.user_id, None)
-        await db.delete_partner(self.company)
-        return "Менеджеры отвязаны. Партнёр удалён."
+            return await Text(self).pin_manager_text()
+        elif self.action == "unpin_company":
+            return await Text(self).unpin_manager_text()
+        elif self.action == "confirm":
+            return await Text(self).partner_delete()
 
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
@@ -159,120 +69,124 @@ class PartnerCallBackController(BaseKeyboard):
         ]
         return self._get_keyboard(keyboard)
 
+    def row(self, text, **kwargs):
+        return [(text, self.make_cd(**kwargs))]
+
+    async def _back(self, **kwargs):
+        return [[("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]]
+
+
     async def _get_action_buttons(self):
 
-        def row(text, **cd_kwargs):
-            return [(text, self.make_cd(**cd_kwargs))]
-
-        async def back(action, **kwargs):
-            return [await self._back(action, **kwargs)]
-
         match self.action:
-
             case "set_partners":
-                return [
-                    row("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", action="add"),
-                    row("СПИСОК КОМПАНИЙ 🗂️", action="partners"),
-                    row("МЕНЕДЖЕРЫ 👔", action="managers"),
-                    row("ВСЕ ПОЛЬЗОВАТЕЛИ 🗄️", action="users"),
-                ]
-
+                return await self.handle_main_menu()
             case "partners":
-                partners = await db.get_partners()
-                buttons = [
-                    row(p.name, action="partner", company=p.name)
-                    for p in partners
-                ]
-                buttons += await back("set_partners")
-                return buttons
-
+                return await self.handle_partners()
             case "users":
-                users = await db.get_users()
-                buttons = [
-                    row(u.first_name, action="user", user_id=u.user_id)
-                    for u in users
-                ]
-                buttons += await back("set_partners")
-                return buttons
-
+                return await self.handle_users()
             case "managers":
-                managers = await db.get_users()
-                buttons = [
-                    row(m.first_name, action="manager", user_id=m.user_id)
-                    for m in managers if m.is_manager
-                ]
-                buttons += await back("set_partners")
-                return buttons
-
+                return await self.handle_managers()
             case "partner":
-                return [
-                    row("ИЗМЕНИТЬ СКИДКУ 💰", action="edit_discount", company=self.company),
-                    row("МЕНЕДЖЕРЫ 👔", action="company_managers", company=self.company),
-                    row("УДАЛИТЬ КОМПАНИЮ 🗑️", action="remove"),
-                    *(await back("partners")),
-                ]
-
+                return await self.handle_partner()
             case "company_managers":
-                partner = await db.get_partner(self.company)
-                managers = await db.get_users_by_id(partner.partner_id)
-
-                buttons = [
-                    row(m.first_name, action="manager", user_id=m.user_id)
-                    for m in managers
-                ]
-                buttons += await back("partner", company=self.company)
-                return buttons
-
+                return await self.handle_company_managers()
             case "manager":
-                manager = await db.get_user(self.user_id)
-                base_action = "partner" if self.company else "managers"
-
-                if manager.company_id:
-                    main_button = row("ОТВЯЗАТЬ ОТ КОМПАНИИ ➖", action="remove_company",
-                                      user_id=self.user_id)
-                else:
-                    main_button = row("ДОБАВИТЬ В КОМПАНИЮ ➕", action="company_add_manager")
-
-                return [
-                    main_button,
-                    *(await back(base_action, company=self.company)),
-                ]
-
+                return await self.handle_manager()
             case "user":
-                return [
-                    *(await back("users")),
-                ]
-
+                return await self._back(action="users")
             case "company_add_manager":
-                partners = await db.get_partners()
-                buttons = [
-                    row(p.name, action="update", company=p.name)
-                    for p in partners
-                ]
-                buttons += await back("managers", company=self.company)
-                return buttons
-
+                return await self.handle_company_add_manager()
             case "update":
-                return await back("set_partners")
-
-            case "remove":
-                return [
-                    row("ДА ✅", action="remove_partner", company=self.company),
-                    row("НЕТ ❌", action="set_partners"),
-                ]
-
-            case "remove_partner":
-                return [
-                    row("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", action="set_partners"),
-                ]
-
+                return await self._back(action="set_partners")
             case "remove_company":
-                return await back("set_partners")
-
+                return await self.handle_yes_or_no()
+            case "confirm":
+                return [self.row("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", action="set_partners")]
+            case "unpin_company":
+                return await self._back(action="set_partners")
             case _:
                 return []
 
-    async def _back(self, action: str, company=None):
+    async def handle_main_menu(self):
         return [
-            ("🔙 НАЗАД 🔙", self.make_cd(action=action, company=company))
+            self.row("ДОБАВИТЬ НОВУЮ КОМПАНИЮ 🆕", action="add"),
+            self.row("СПИСОК КОМПАНИЙ 🗂️", action="partners"),
+            self.row("МЕНЕДЖЕРЫ 👔", action="managers"),
+            self.row("ВСЕ ПОЛЬЗОВАТЕЛИ 🗄️", action="users"),
+        ]
+
+    async def handle_partners(self):
+        partners = await db.get_partners()
+        buttons = [
+            self.row(p.name, action="partner", company=p.name)
+            for p in partners
+        ]
+        buttons += await self._back(action="set_partners")
+        return buttons
+
+    async def handle_users(self):
+        users = await db.get_users()
+        buttons = [
+            self.row(u.first_name, action="user", user_id=u.user_id)
+            for u in users
+        ]
+        buttons += await self._back(action="set_partners")
+        return buttons
+
+    async def handle_managers(self):
+        managers = await db.get_users()
+        buttons = [
+            self.row(m.first_name, action="manager", user_id=m.user_id)
+            for m in managers if m.is_manager
+        ]
+        buttons += await self._back(action="set_partners")
+        return buttons
+
+    async def handle_partner(self):
+        return [
+            self.row("ИЗМЕНИТЬ СКИДКУ 💰", action="edit_discount", company=self.company),
+            self.row("МЕНЕДЖЕРЫ 👔", action="company_managers", company=self.company),
+            self.row("УДАЛИТЬ КОМПАНИЮ 🗑️", action="remove_company"),
+            *(await self._back(action="partners")),
+        ]
+
+    async def handle_company_managers(self):
+        partner = await db.get_partner(self.company)
+        managers = await db.get_users_by_id(partner.partner_id)
+        buttons = [
+            self.row(m.first_name, action="manager", user_id=m.user_id)
+            for m in managers
+        ]
+        buttons += await self._back(action="partner", company=self.company)
+        return buttons
+
+    async def handle_manager(self):
+        manager = await db.get_user(self.user_id)
+        base_action = "partner" if self.company else "managers"
+
+        if manager.company_id:
+            main_button = self.row("ОТВЯЗАТЬ ОТ КОМПАНИИ ➖", action="unpin_company",
+                              user_id=self.user_id)
+        else:
+            main_button = self.row("ДОБАВИТЬ В КОМПАНИЮ ➕", action="company_add_manager")
+
+        return [
+            main_button,
+            *(await self._back(action=base_action, company=self.company)),
+        ]
+
+    async def handle_company_add_manager(self):
+        partners = await db.get_partners()
+        buttons = [
+            self.row(p.name, action="update", company=p.name)
+            for p in partners
+        ]
+        buttons += await self._back(action="managers", company=self.company)
+        return buttons
+
+    async def handle_yes_or_no(self):
+        return [
+            self.row("ДА ✅", action="confirm", company=self.company),
+            self.row("НЕТ ❌", action="set_partners"),
         ]

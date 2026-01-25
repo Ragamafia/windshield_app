@@ -7,6 +7,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.cars.handlers import register_car_handlers
 from bot.partners.handlers import register_partners_handlers
+from bot.setup.handlers import register_setup_handlers
 from db.ctrl import db
 from models import User
 from config import cfg
@@ -26,6 +27,7 @@ class DetailerBot(Bot):
         self.dp.include_router(self.router)
         register_car_handlers(self)
         register_partners_handlers(self)
+        register_setup_handlers(self)
 
         await self.set_my_commands([
             BotCommand(command='/start', description='Start bot 🟢')

@@ -79,18 +79,29 @@ class DataBaseController(BaseDB):
     async def get_body(self, brand, model, year_start):
         return await self.cars.filter(brand=brand, model=model, year_start=year_start).all()
 
-    async def get_body_id(self, body):
+    async def get_body_id(self, body: str):
         if id := await self.body.filter(body=body).first():
             return id.id
         else:
             id = await self.body.create(body=body)
             return id.id
 
+    async def delete_body(self, id):
+        if body := await self.body.filter(id=id).first():
+            await body.delete()
+
+    async def get_body_name(self, id):
+        if name := await self.body.filter(id=id).first():
+            return name.body
+
+    async def get_all_body(self):
+        return await self.body.all()
+
     async def get_avialable_models(self, brand, model_start_letter: str = None):
         if model_start_letter:
             return await self.cars.filter(brand=brand, model__startswith=model_start_letter).values_list("model", flat=True)
         else:
-            return await self.cars.filter(brand=brand).values_list("model", flat=True)
+            return await self.cars.filter(brand=brand).distinct().values_list("model", flat=True)
 
 
     async def put_brands(self, brand):
@@ -165,7 +176,7 @@ class DataBaseController(BaseDB):
         if car := await self.cars.filter(glass_id=glass_id).first():
             car.difficulty = level
             await car.save()
-            await self.cars.filter(id=car.id).update(level_recived=True)
+            await self.cars.filter(id=car.id).update(level_received=True)
             logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
             return car
         # if cars := await self.cars.filter(brand=brand, model=model, gen=gen).all():
