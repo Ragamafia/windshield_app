@@ -141,6 +141,16 @@ class DataBaseController(BaseDB):
                 else:
                     logger.warning(f'No size for {car.brand} {car.model}, ID {glass_id}')
 
+    async def put_difficulty_not_processed(self, body_id, difficulty_level):
+        if cars := await self.cars.filter(body=body_id, processed=False).all():
+            for car in cars:
+                car.difficulty = difficulty_level
+                await car.save()
+                await self.cars.filter(id=car.id).update(level_received=True)
+                logger.debug(f'Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {difficulty_level}')
+
+            return len(cars)
+
     async def get_model_info(self):
         async with self.car_lock:
             if car := await self.cars.filter(level=False, year_start__gte=cfg.year_start_search).first():

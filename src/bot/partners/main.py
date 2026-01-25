@@ -71,10 +71,6 @@ class PartnerCallbackController(BaseKeyboard):
     def row(self, text, **kwargs):
         return [(text, self.make_cd(**kwargs))]
 
-    async def _back(self, **kwargs):
-        return [[("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]]
-
-
     async def _get_action_buttons(self):
 
         match self.action:
@@ -93,17 +89,17 @@ class PartnerCallbackController(BaseKeyboard):
             case "manager":
                 return await self.handle_manager()
             case "user":
-                return await self._back(action="users")
+                return self._back(action="users")
             case "company_add_manager":
                 return await self.handle_company_add_manager()
             case "update":
-                return await self._back(action="set_partners")
+                return self._back(action="set_partners")
             case "remove_company":
                 return await self.handle_yes_or_no()
             case "confirm":
                 return [self.row("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", action="set_partners")]
             case "unpin_company":
-                return await self._back(action="set_partners")
+                return self._back(action="set_partners")
             case _:
                 return []
 
@@ -121,7 +117,7 @@ class PartnerCallbackController(BaseKeyboard):
             self.row(p.name, action="partner", company=p.name)
             for p in partners
         ]
-        buttons += await self._back(action="set_partners")
+        buttons += self._back(action="set_partners")
         return buttons
 
     async def handle_users(self):
@@ -130,7 +126,7 @@ class PartnerCallbackController(BaseKeyboard):
             self.row(u.first_name, action="user", user_id=u.user_id)
             for u in users
         ]
-        buttons += await self._back(action="set_partners")
+        buttons += self._back(action="set_partners")
         return buttons
 
     async def handle_managers(self):
@@ -139,7 +135,7 @@ class PartnerCallbackController(BaseKeyboard):
             self.row(m.first_name, action="manager", user_id=m.user_id)
             for m in managers if m.is_manager
         ]
-        buttons += await self._back(action="set_partners")
+        buttons += self._back(action="set_partners")
         return buttons
 
     async def handle_partner(self):
@@ -147,7 +143,7 @@ class PartnerCallbackController(BaseKeyboard):
             self.row("ИЗМЕНИТЬ СКИДКУ 💰", action="edit_discount", company=self.company),
             self.row("МЕНЕДЖЕРЫ 👔", action="company_managers", company=self.company),
             self.row("УДАЛИТЬ КОМПАНИЮ 🗑️", action="remove_company"),
-            *(await self._back(action="partners")),
+            *(self._back(action="partners")),
         ]
 
     async def handle_company_managers(self):
@@ -157,7 +153,7 @@ class PartnerCallbackController(BaseKeyboard):
             self.row(m.first_name, action="manager", user_id=m.user_id)
             for m in managers
         ]
-        buttons += await self._back(action="partner", company=self.company)
+        buttons += self._back(action="partner", company=self.company)
         return buttons
 
     async def handle_manager(self):
@@ -172,7 +168,7 @@ class PartnerCallbackController(BaseKeyboard):
 
         return [
             main_button,
-            *(await self._back(action=base_action, company=self.company)),
+            *(self._back(action=base_action, company=self.company)),
         ]
 
     async def handle_company_add_manager(self):
@@ -181,11 +177,16 @@ class PartnerCallbackController(BaseKeyboard):
             self.row(p.name, action="update", company=p.name)
             for p in partners
         ]
-        buttons += await self._back(action="managers", company=self.company)
+        buttons += self._back(action="managers", company=self.company)
         return buttons
 
     async def handle_yes_or_no(self):
         return [
             self.row("ДА ✅", action="confirm", company=self.company),
             self.row("НЕТ ❌", action="set_partners"),
+        ]
+
+    def _back(self, **kwargs):
+        return [
+            [("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]
         ]

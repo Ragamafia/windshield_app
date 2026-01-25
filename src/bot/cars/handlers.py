@@ -16,7 +16,7 @@ def register_car_handlers(bot):
         if user.admin:
             keyboard = [
                 [("ВЫБОР АВТО 🚘", "car:car#*****##&")],
-                [("НАСТРОЙКИ БАЗЫ 🔧", "setup:set_db#*")],
+                [("НАСТРОЙКИ БАЗЫ ⚙️", "setup:set_db#*")],
                 [("НАСТРОЙКИ ПАРТНЁРОВ 👥", "partners:set_partners#*")]
             ]
         else:

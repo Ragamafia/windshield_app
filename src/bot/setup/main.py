@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, CallbackQuery
 
 from bot.common import BaseKeyboard
+from bot.setup.text import Text
 from models import User
 from db.ctrl import db
 
@@ -38,16 +39,13 @@ class SetupCallbackDataController(BaseKeyboard):
             return "НАСТРОЙКИ БАЗЫ ДАННЫХ"
 
         elif self.action == "select_body":
-            return ("Выберите тип кузова для выбора уровня сложности.\n\n"
-                    "ВНИМАНИЕ!!! Сложность будет изменена ДЛЯ ВСЕХ АВТОМОБИЛЕЙ "
-                    "с выбранным кузовом, кроме тех, которые назначены вручную.")
+            return await Text(self).get_select_body_text()
 
         elif self.action == "set_body":
             return "Установите уровень сложности для кузова:"
 
-        elif self.action == "parse":
+        elif self.action == "start_parse":
             return "Sorry, not implemented"
-
 
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
@@ -57,51 +55,50 @@ class SetupCallbackDataController(BaseKeyboard):
         ]
         return self._get_keyboard(keyboard)
 
+    def row(self, text, **cd_kwargs):
+        return [(text, self.make_cd(**cd_kwargs))]
+
     async def _get_action_buttons(self):
 
-        def row(text, **cd_kwargs):
-            return [(text, self.make_cd(**cd_kwargs))]
-
-        async def back(action, **kwargs):
-            return [await self._back(action, **kwargs)]
-
         match self.action:
-
             case "set_db":
-                return [
-                    row("ПЕРЕБРАТЬ ВСЕ ТИПЫ 💿", action="set_body"),
-                    row("НАЗНАЧИТЬ ОТДЕЛЬНО ", action="select_body"),
-                    row("ЗАПУСК ПАРСЕРА 🔍️", action="parse"),
-                ]
-
+                return await self.get_main_db_button()
             case "select_body":
-                items = await db.get_all_body()
-                buttons = [
-                    [(body.body, self.make_cd(id=await db.get_body_id(body.body )))]
-                    for body in items
-                ]
-                buttons += await back("set_db")
-                print(buttons)
-                return buttons
-
+                return await self.get_select_body_buttons()
             case _:
                 return []
 
-    # async def get_action_buttons(self):
-    #     if self.action == "select_body":
-    #         case "set_body":
-    #             return await self.setup_difficulty()
-    #         case "select_body":
-    #             return await self.setup_difficulty()
-    #         case _:
-    #             return []
-
-    async def setup_difficulty(self):
-        buttons = self.get_difficulty_buttons(make_cd=self.make_cd)
-        buttons += await self._back(id=None)
-        return buttons
-
-    async def _back(self, action: str = None, id: int = None, difficulty: int = None):
+    async def get_main_db_button(self):
         return [
-            ("🔙 НАЗАД 🔙", self.make_cd(action=action, id=id, difficulty=difficulty))
+            self.row("ПЕРЕБРАТЬ ВСЕ ТИПЫ КУЗОВА 💿", action="set_body"),
+            self.row("НАЗНАЧИТЬ СЛОЖНОСТЬ ОТДЕЛЬНО 🔧", action="select_body"),
+            self.row("ЗАПУСК ПАРСЕРА 🔍️", action="start_parse"),
+        ]
+
+    async def get_select_body_buttons(self):
+        if not self.id:
+            items = await db.get_all_body()
+            buttons = [
+                [(body.body, self.make_cd(action="select_body", id=await db.get_body_id(body.body)))]
+                for body in items
+            ]
+            buttons += self._back(action="set_db")
+            return buttons
+
+        elif not self.difficulty:
+            buttons = [
+                [(str(level), self.make_cd(difficulty=level)) for level in range(1, 6)],
+                [(str(level), self.make_cd(difficulty=level)) for level in range(6, 11)],
+            ]
+            buttons += self._back(id=None)
+            return buttons
+
+        else:
+            await db.put_difficulty_not_processed(self.id, self.difficulty)
+            return [self.row("В НАСТРОЙКИ БАЗЫ ДАННЫХ ⚙", action="set_db", id=None, difficulty=None)]
+
+
+    def _back(self, **kwargs):
+        return [
+            [("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]
         ]

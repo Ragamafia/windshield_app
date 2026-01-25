@@ -33,9 +33,11 @@ class ModelDBModel(Model):
 
 
 class CarDBModel(Model):
+    processed = fields.BooleanField(default=False) # получены: size, img, difficulty level (вручную)
+
     size_received = fields.BooleanField(default=False)
     img_received = fields.BooleanField(default=False)
-    level_received = fields.BooleanField(default=False)  # получен difficulty level
+    level_received = fields.BooleanField(default=False)
 
     id = fields.UUIDField(primary_key=True)
     glass_id = fields.CharField(max_length=50)

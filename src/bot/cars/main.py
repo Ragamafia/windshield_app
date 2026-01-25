@@ -107,10 +107,10 @@ class CarCallbackController(BaseKeyboard):
                 return []
 
     async def get_car_buttons(self):
-        if self.action == "car" and not self.brand_start_letter:
+        if not self.brand_start_letter:
             return self.get_brand_alphabet()
 
-        elif self.action == "car" and self.brand and self.model and self.years and self.body:
+        elif self.brand and self.model and self.years and self.body:
             buttons = [[("ПОЛУЧИТЬ ИНФО ℹ️", self.make_cd(action="info"))]]
             if self.user.admin:
                 buttons.append([("РЕДАКТИРОВАТЬ ⚙️", self.make_cd(action="edit"))])
@@ -119,7 +119,7 @@ class CarCallbackController(BaseKeyboard):
 
             return buttons + self.back(years=None, body=None)
 
-        elif self.action == "car":
+        else:
             if items := await self.get_items():
                 buttons = await self.get_page_items(items)
 
@@ -143,7 +143,10 @@ class CarCallbackController(BaseKeyboard):
 
     async def get_edit_buttons(self):
         if not self.level:
-            buttons = BaseKeyboard(self.user).get_difficulty_buttons(make_cd=self.make_cd)
+            buttons = [
+                [(str(level), self.make_cd(level=level)) for level in range(1, 6)],
+                [(str(level), self.make_cd(level=level)) for level in range(6, 11)],
+            ]
             buttons += self.back(action="car")
             return buttons
         else:
@@ -238,10 +241,12 @@ class CarCallbackController(BaseKeyboard):
             for row in all_rows
         ]
 
-    def back(self, **kwargs):
-        return [[("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]]
-
     async def get_photo(self):
         if all((self.brand, self.model, self.year_start, self.body, not self.level)):
             car = await db.get_car(self.brand, self.model, self.year_start, self.body)
             return Path(cfg.path_to_images / self.brand / self.model / car.glass_id / "img.jpg")
+
+    def back(self, **kwargs):
+        return [
+            [("🔙 НАЗАД 🔙", self.make_cd(**kwargs))]
+        ]

@@ -13,12 +13,6 @@ class BaseKeyboard:
         ]
 
 
-    def get_difficulty_buttons(self, make_cd):
-        return [
-            [(str(level), make_cd(level=level)) for level in range(1, 6)],
-            [(str(level), make_cd(level=level)) for level in range(6, 11)],
-        ]
-
     @staticmethod
     def _get_keyboard(colls: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
