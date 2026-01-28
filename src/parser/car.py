@@ -23,6 +23,8 @@ class CarParser(MainParser):
 
                 elif model := await self.db.get_model_to_parse():
                     if result := await self._parse_model(*model):
+                        for i in result:
+                            print(i.items())
                         sizes = [await self._parse_gen(*model, id["glass_id"]) for id in result]
 
                         task_put_gen = [self.db.put_gen(**res) for res in result]

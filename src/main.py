@@ -5,8 +5,6 @@ import uvicorn
 from bot.bot import DetailerBot
 from db.ctrl import db
 from logger import logger
-from config import cfg
-from parser.car import CarParser
 #from db.temp_ctrl import temp_db
 
 
@@ -21,18 +19,9 @@ async def run_server():
     server = uvicorn.Server(config)
     await server.serve()
 
-async def run_parser(db):
-    logger.info(f'Parse process...')
-    workers = []
-    for _ in range(cfg.WORKERS_COUNT):
-        workers.append(CarParser(db))
-    await workers[0].get_new_brands()
-    await asyncio.gather(*[worker.run() for worker in workers])
-    logger.success(f'Parse process complete. Total cars: {await db.count_cars()}.')
 
 async def main():
     await db.setup_db()
-    await run_parser(db)
     # #await db.delete_user(1377785914)  # Admin
     # #await db.delete_user(8082484525)  # Admin
 
