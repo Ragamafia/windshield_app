@@ -23,10 +23,7 @@ class CarParser(MainParser):
 
                 elif model := await self.db.get_model_to_parse():
                     if result := await self._parse_model(*model):
-                        for i in result:
-                            print(i.items())
                         sizes = [await self._parse_gen(*model, id["glass_id"]) for id in result]
-
                         task_put_gen = [self.db.put_gen(**res) for res in result]
                         task_download_image = [self._download_image(*model, id["glass_id"]) for id in result]
                         await asyncio.gather(*task_put_gen, *task_download_image)
@@ -66,7 +63,6 @@ class CarParser(MainParser):
             except:
                 print(f"Can not find image {brand} {model} {id}")
         else:
-            await self.db.images_received(id)
             logger.warning(f"Image {brand} {model} {id} already exists")
 
     async def _parse_all_brands(self) -> list:

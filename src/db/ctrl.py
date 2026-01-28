@@ -48,16 +48,6 @@ class DataBaseController(BaseDB):
     #                 groups[key].append(models)
     #
     #             return list(groups.values())
-    #
-    # async def get_cars_without_image(self, brand, model) -> list[list]:
-    #     async with self.car_lock:
-    #         result = []
-    #         if models := await self.cars.filter(brand=brand, model=model, img_received=False).all():
-    #             for car in models:
-    #                 result.append([car.brand, car.model, car.glass_id])
-    #
-    #         return result
-
 
     async def images_received(self, id):
         await self.cars.filter(glass_id=id).update(img_received=True)
@@ -99,6 +89,10 @@ class DataBaseController(BaseDB):
             return await self.cars.filter(brand=brand, model__startswith=model_start_letter).values_list("model", flat=True)
         else:
             return await self.cars.filter(brand=brand).distinct().values_list("model", flat=True)
+
+    async def count_cars(self):
+        return await self.cars.all().count()
+
 
     async def put_brands(self, brand):
         if not await self.brands.filter(brand=brand).exists():
@@ -145,6 +139,14 @@ class DataBaseController(BaseDB):
                 await self.cars.filter(id=car.id).update(level_received=True)
                 logger.debug(f'Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {difficulty_level}')
 
+    async def update_level(self, glass_id, level):
+        if car := await self.cars.filter(glass_id=glass_id).first():
+            car.difficulty = level
+            await car.save()
+            await self.cars.filter(id=car.id).update(level_received=True, processed=True)
+            logger.success(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
+            return car
+
 
     async def get_model_info(self):
         async with self.car_lock:
@@ -176,18 +178,6 @@ class DataBaseController(BaseDB):
                     "groups": fixed,
                 }
                 return result
-
-    async def update_level(self, glass_id, level):
-        if car := await self.cars.filter(glass_id=glass_id).first():
-            car.difficulty = level
-            await car.save()
-            await self.cars.filter(id=car.id).update(level_received=True, processed=True)
-            logger.success(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
-            return car
-
-
-    async def count_cars(self):
-        return await self.cars.all().count()
 
 
     async def create_user(self, user_id, username, first_name, admin: bool, is_manager: bool):
@@ -223,6 +213,15 @@ class DataBaseController(BaseDB):
         if user := await self.users.filter(user_id=user_id).first():
             await user.delete()
 
+    async def put_partner(self, name, discount):
+        if not await self.partner.filter(name=name).exists():
+            await self.partner.create(name=name, discount=discount)
+            logger.info(f'Create new partner: {name}')
+        elif partner := await self.partner.filter(name=name).first():
+            partner.discount = discount
+            await partner.save()
+            logger.info(f'Partner updated: {name}. New discount: {discount}%')
+
     async def get_partners(self):
         return await self.partner.all().order_by("name")
 
@@ -235,15 +234,6 @@ class DataBaseController(BaseDB):
     async def delete_partner(self, name):
         if partner := await self.partner.filter(name=name).first():
             await partner.delete()
-
-    async def put_partner(self, name, discount):
-        if not await self.partner.filter(name=name).exists():
-            await self.partner.create(name=name, discount=discount)
-            logger.info(f'Create new partner: {name}')
-        elif partner := await self.partner.filter(name=name).first():
-            partner.discount = discount
-            await partner.save()
-            logger.info(f'Partner updated: {name}. New discount: {discount}%')
 
 
 db: DataBaseController = DataBaseController()
