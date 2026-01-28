@@ -20,27 +20,20 @@ async def run_server():
 
 
 from db.temp_ctrl import temp_db
-from db.old_ctrl import old_db
 
 
 async def main():
-    #await db.setup_db()
+    await db.setup_db()
 
     # #await db.delete_user(1377785914)  # Admin
     # #await db.delete_user(8082484525)  # Admin
 
     # server_task = asyncio.create_task(run_server())
-
+    #await temp_db.setup_db()
     #all_diff = await temp_db.get_difficulty()
     #await db.setup_db()
     #for i in all_diff:
         #await db.update_level(i.glass_id, i.difficulty)
-    await old_db.setup_db()
-    all_cars = await old_db.get_all_cars()
-    print(f"Get all cars: {len(all_cars)}")
-    await temp_db.setup_db()
-    for i in all_cars:
-        await temp_db.put_difficulty(i.glass_id, i.difficulty)
 
     bot_task = asyncio.create_task(run_bot())
     await asyncio.gather(bot_task)

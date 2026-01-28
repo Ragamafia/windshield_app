@@ -247,8 +247,5 @@ class DataBaseController(BaseDB):
             await partner.save()
             logger.info(f'Partner updated: {name}. New discount: {discount}%')
 
-    async def get_all_cars(self):
-        return await self.cars.all().order_by("brand")
-
 
 db: DataBaseController = DataBaseController()
