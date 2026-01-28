@@ -102,13 +102,6 @@ class DataBaseController(BaseDB):
         else:
             return await self.cars.filter(brand=brand).distinct().values_list("model", flat=True)
 
-    async def update_difficulty(self, glass_id, difficulty):
-        if car := await self.cars.filter(glass_id=glass_id).first():
-            car.difficulty = difficulty
-            await car.save()
-            await self.cars.filter(id=car.id).update(processed=True)
-            logger.success(f"Difficulty updated for {car.brand} {car.model} {car.year_start}-{car.year_end} - {difficulty}")
-
     async def put_brands(self, brand):
         if not await self.brands.filter(brand=brand).exists():
             await self.brands.create(brand=brand)
@@ -191,8 +184,9 @@ class DataBaseController(BaseDB):
             car.difficulty = level
             await car.save()
             await self.cars.filter(id=car.id).update(level_received=True, processed=True)
-            logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
+            logger.success(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
             return car
+
 
     async def count_cars(self):
         return await self.cars.all().count()
@@ -252,6 +246,9 @@ class DataBaseController(BaseDB):
             partner.discount = discount
             await partner.save()
             logger.info(f'Partner updated: {name}. New discount: {discount}%')
+
+    async def get_all_cars(self):
+        return await self.cars.all().order_by("brand")
 
 
 db: DataBaseController = DataBaseController()
