@@ -11,14 +11,13 @@ def parse_callback_data(callback: str):
         handler, data = callback.split(":")
         action, values = data.split("#")
         id, difficulty = values.split("*")
-        print(f"act {action} id{id} diff{difficulty}")
         return action, id, difficulty
 
     except ValueError:
         return None, []
 
 
-class SetupCallbackDataController(BaseKeyboard):
+class SetupCallbackController(BaseKeyboard):
     action: str | None
     id: int | None
     difficulty: int | None
@@ -41,11 +40,8 @@ class SetupCallbackDataController(BaseKeyboard):
         elif self.action == "select_body":
             return await Text(self).get_select_body_text()
 
-        elif self.action == "set_body":
-            return "Установите уровень сложности для кузова:"
-
-        elif self.action == "start_parse":
-            return "Sorry, not implemented"
+        elif self.action == "parse":
+            return await Text(self).get_start_parse_text()
 
 
     async def keyboard(self) -> InlineKeyboardMarkup | None:
@@ -65,14 +61,15 @@ class SetupCallbackDataController(BaseKeyboard):
                 return await self.get_main_db_button()
             case "select_body":
                 return await self.get_select_body_buttons()
+            case "parse":
+                return await self.get_parse_buttons()
             case _:
                 return []
 
     async def get_main_db_button(self):
         return [
-            self.row("ПЕРЕБРАТЬ ВСЕ ТИПЫ КУЗОВА 💿", action="set_body"),
-            self.row("НАЗНАЧИТЬ СЛОЖНОСТЬ ОТДЕЛЬНО 🔧", action="select_body"),
-            self.row("ЗАПУСК ПАРСЕРА 🔍️", action="start_parse"),
+            self.row("НАЗНАЧИТЬ УРОВЕНЬ СЛОЖНОСТИ 🔧", action="select_body"),
+            self.row("ЗАПУСК ПАРСЕРА 🔍️", action="parse"),
         ]
 
     async def get_select_body_buttons(self):
@@ -96,6 +93,12 @@ class SetupCallbackDataController(BaseKeyboard):
         else:
             await db.put_difficulty_not_processed(self.id, self.difficulty)
             return [self.row("В НАСТРОЙКИ БАЗЫ ДАННЫХ ⚙", action="set_db", id=None, difficulty=None)]
+
+    async def get_parse_buttons(self):
+        return [
+            [("🟢 ПРОДОЛЖИТЬ 🟢", "start_parse")],
+            *self._back(action="set_db")
+        ]
 
 
     def _back(self, **kwargs):

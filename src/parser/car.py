@@ -43,6 +43,7 @@ class CarParser(MainParser):
                 task = [self.db.put_brands(brand) for brand in brands]
                 await asyncio.gather(*task)
                 logger.success(f"Receive {len(brands) - len_current_brands} new brands.")
+                return len(brands) - len_current_brands
             else:
                 raise RuntimeError("Can not get all brands. Aborting...")
 
@@ -50,18 +51,21 @@ class CarParser(MainParser):
         save_dir = cfg.path_to_images / brand / model / id
         save_dir.mkdir(parents=True, exist_ok=True)
         image_path = save_dir / "img.jpg"
-
-        url = f"{cfg.BASE_URL}/{brand}/{model}/{id}"
-        soup = await self._get_page(url)
-        try:
-            image = soup.find('img', {"class": "fluid"})
-            image = await self.get(image['src'])
-            with open(image_path, 'wb') as file:
-                file.write(image)
-                await self.db.images_received(id)
-                logger.success(f'Save new image: {brand} {model} {id}')
-        except:
-            print(f"Can not find image {brand} {model} {id}")
+        if not image_path.exists():
+            url = f"{cfg.BASE_URL}/{brand}/{model}/{id}"
+            soup = await self._get_page(url)
+            try:
+                image = soup.find('img', {"class": "fluid"})
+                image = await self.get(image['src'])
+                with open(image_path, 'wb') as file:
+                    file.write(image)
+                    await self.db.images_received(id)
+                    logger.success(f'Save new image: {brand} {model} {id}')
+            except:
+                print(f"Can not find image {brand} {model} {id}")
+        else:
+            await self.db.images_received(id)
+            logger.warning(f"Image {brand} {model} {id} already exists")
 
     async def _parse_all_brands(self) -> list:
         soup = await self._get_page(cfg.HOME_URL)
@@ -150,7 +154,6 @@ class CarParser(MainParser):
             restyle = 0
 
         gen = span.text.strip().split(',')
-        print(f"GEN {gen}")
         for i in gen[0].split():
             if i.isdigit():
                 gen = int(i)

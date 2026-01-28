@@ -33,7 +33,7 @@ class ModelDBModel(Model):
 
 
 class CarDBModel(Model):
-    processed = fields.BooleanField(default=False) # получены: size, img, difficulty level (вручную)
+    processed = fields.BooleanField(default=False) # difficulty level получен вручную
 
     size_received = fields.BooleanField(default=False)
     img_received = fields.BooleanField(default=False)

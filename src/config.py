@@ -26,10 +26,9 @@ class Config(BaseSettings):
     request_attempts: int = 10
     WORKERS_COUNT: int = 3
 
-    #sql_lite_db_path: Path = Path("../data/database.db")
-    sql_lite_db_path: Path = Path("../data/database2.db")
-    #path_to_images: Path = Path("../data/images/")
-    path_to_images: Path = Path("../data/images2/")
+    sql_lite_db_path: Path = Path("../data/database.db")
+    sql_lite_temp_db_path: Path = Path("../data/tempdatabase.db")
+    path_to_images: Path = Path("../data/images/")
 
     templates: Path = Path("app/templates")
 

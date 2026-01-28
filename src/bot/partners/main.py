@@ -95,7 +95,7 @@ class PartnerCallbackController(BaseKeyboard):
             case "update":
                 return self._back(action="set_partners")
             case "remove_company":
-                return await self.handle_yes_or_no()
+                return await self.handle_confirm()
             case "confirm":
                 return [self.row("В НАСТРОЙКИ ПОЛЬЗОВАТЕЛЕЙ 👥", action="set_partners")]
             case "unpin_company":
@@ -180,7 +180,7 @@ class PartnerCallbackController(BaseKeyboard):
         buttons += self._back(action="managers", company=self.company)
         return buttons
 
-    async def handle_yes_or_no(self):
+    async def handle_confirm(self):
         return [
             self.row("ДА ✅", action="confirm", company=self.company),
             self.row("НЕТ ❌", action="set_partners"),

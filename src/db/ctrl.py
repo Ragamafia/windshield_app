@@ -40,35 +40,38 @@ class DataBaseController(BaseDB):
                 await self.models.filter(id=model.id).update(processed=True)
                 return model.brand, model.model
 
-    async def get_group_all_cars(self):
-            if all_cars := await self.cars.filter().all():
-                groups = defaultdict(list)
-                for models in all_cars:
-                    key = (models.brand, models.model)
-                    groups[key].append(models)
+    # async def get_group_all_cars(self):
+    #         if all_cars := await self.cars.filter().all():
+    #             groups = defaultdict(list)
+    #             for models in all_cars:
+    #                 key = (models.brand, models.model)
+    #                 groups[key].append(models)
+    #
+    #             return list(groups.values())
+    #
+    # async def get_cars_without_image(self, brand, model) -> list[list]:
+    #     async with self.car_lock:
+    #         result = []
+    #         if models := await self.cars.filter(brand=brand, model=model, img_received=False).all():
+    #             for car in models:
+    #                 result.append([car.brand, car.model, car.glass_id])
+    #
+    #         return result
 
-                return list(groups.values())
-
-    async def get_cars_without_image(self, brand, model) -> list[list]:
-        async with self.car_lock:
-            result = []
-            if models := await self.cars.filter(brand=brand, model=model, img_received=False).all():
-                for car in models:
-                    result.append([car.brand, car.model, car.glass_id])
-
-            return result
+    async def delete(self, id):
+        await self.models.filter(id=id).delete()
 
     async def images_received(self, id):
         await self.cars.filter(glass_id=id).update(img_received=True)
 
     async def get_brands(self, letter: str = None):
         if letter:
-            return await self.brands.filter(brand__startswith=letter).all()
+            return await self.brands.filter(brand__startswith=letter).all().order_by('brand')
         else:
-            return await self.brands.filter().all()
+            return await self.brands.filter().all().order_by('brand')
 
     async def get_models(self, brand):
-        return await self.models.filter(brand=brand)
+        return await self.models.filter(brand=brand).order_by('model')
 
     async def get_gens(self, brand, model):
         return await self.cars.filter(brand=brand, model=model)
@@ -86,10 +89,6 @@ class DataBaseController(BaseDB):
             id = await self.body.create(body=body)
             return id.id
 
-    async def delete_body(self, id):
-        if body := await self.body.filter(id=id).first():
-            await body.delete()
-
     async def get_body_name(self, id):
         if name := await self.body.filter(id=id).first():
             return name.body
@@ -103,6 +102,12 @@ class DataBaseController(BaseDB):
         else:
             return await self.cars.filter(brand=brand).distinct().values_list("model", flat=True)
 
+    async def update_difficulty(self, glass_id, difficulty):
+        if car := await self.cars.filter(glass_id=glass_id).first():
+            car.difficulty = difficulty
+            await car.save()
+            await self.cars.filter(id=car.id).update(processed=True)
+            logger.success(f"Difficulty updated for {car.brand} {car.model} {car.year_start}-{car.year_end} - {difficulty}")
 
     async def put_brands(self, brand):
         if not await self.brands.filter(brand=brand).exists():
@@ -149,7 +154,6 @@ class DataBaseController(BaseDB):
                 await self.cars.filter(id=car.id).update(level_received=True)
                 logger.debug(f'Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {difficulty_level}')
 
-            return len(cars)
 
     async def get_model_info(self):
         async with self.car_lock:
@@ -186,22 +190,12 @@ class DataBaseController(BaseDB):
         if car := await self.cars.filter(glass_id=glass_id).first():
             car.difficulty = level
             await car.save()
-            await self.cars.filter(id=car.id).update(level_received=True)
+            await self.cars.filter(id=car.id).update(level_received=True, processed=True)
             logger.debug(f"Difficulty set for {car.brand} {car.model} {car.year_start}-{car.year_end} - {level}")
             return car
-        # if cars := await self.cars.filter(brand=brand, model=model, gen=gen).all():
-        #     for car in cars:
-        #         car.difficulty = level
-        #         await car.save()
-        #         await self.cars.filter(id=car.id).update(level=True)
-        #         logger.debug(f"Difficulty set for {brand} {model} {car.year_start}-{car.year_end} - {level}")
-        #     return cars[0]
 
     async def count_cars(self):
         return await self.cars.all().count()
-
-    async def count_processed_level(self, level: bool):
-        return await self.cars.filter(level=level).all().count()
 
 
     async def create_user(self, user_id, username, first_name, admin: bool, is_manager: bool):
@@ -236,7 +230,6 @@ class DataBaseController(BaseDB):
     async def delete_user(self, user_id):
         if user := await self.users.filter(user_id=user_id).first():
             await user.delete()
-
 
     async def get_partners(self):
         return await self.partner.all().order_by("name")
