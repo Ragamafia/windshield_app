@@ -59,8 +59,8 @@ class CarParser(MainParser):
                 image = await self.get(image['src'])
                 with open(image_path, 'wb') as file:
                     file.write(image)
-                    await self.db.images_received(id)
-                    logger.success(f'Save new image: {brand} {model} {id}')
+                await self.db.images_received(id)
+                logger.success(f'Save new image: {brand} {model} {id}')
             except:
                 print(f"Can not find image {brand} {model} {id}")
         else:

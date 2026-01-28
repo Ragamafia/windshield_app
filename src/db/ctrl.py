@@ -58,8 +58,6 @@ class DataBaseController(BaseDB):
     #
     #         return result
 
-    async def delete(self, id):
-        await self.models.filter(id=id).delete()
 
     async def images_received(self, id):
         await self.cars.filter(glass_id=id).update(img_received=True)
