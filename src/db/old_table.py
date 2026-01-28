@@ -1,0 +1,51 @@
+from tortoise.models import Model
+from tortoise import fields
+
+
+class Users(Model):
+    user_id = fields.IntField(max_length=50, null=True)
+    company_id = fields.CharField(max_length=50, null=True)
+    admin = fields.BooleanField(default=False)
+    is_manager = fields.BooleanField(default=False)
+    username = fields.CharField(max_length=50, null=True)
+    first_name = fields.CharField(max_length=50, null=True)
+    banned = fields.BooleanField(default=False)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+
+class Partner(Model):
+    partner_id = fields.UUIDField(max_length=50, primary_key=True)
+    name = fields.CharField(max_length=50, unique=True)
+    discount = fields.IntField(max_length=50, default=0)
+
+
+class BrandDBModel(Model):
+    processed = fields.BooleanField(default=False)
+    id = fields.UUIDField(primary_key=True)
+    brand = fields.CharField(max_length=50)
+
+
+class ModelDBModel(Model):
+    processed = fields.BooleanField(default=False)
+    id = fields.UUIDField(primary_key=True)
+    brand = fields.CharField(max_length=50)
+    model = fields.CharField(max_length=50)
+
+
+class GenDBModel(Model):
+    processed = fields.BooleanField(default=False) # difficulty level получен вручную
+
+    level = fields.BooleanField(default=False)
+
+    id = fields.UUIDField(primary_key=True)
+    glass_id = fields.CharField(max_length=50)
+    brand = fields.CharField(max_length=50)
+    model = fields.CharField(max_length=50)
+    year_start = fields.IntField(max_length=50, null=True)
+    year_end = fields.IntField(max_length=50, null=True)
+    gen = fields.IntField(null=True)
+    restyle = fields.IntField(null=True)
+
+    height = fields.IntField(max_length=50, null=True)
+    width = fields.IntField(max_length=50, null=True)
+    difficulty = fields.IntField(max_length=50, null=True)
